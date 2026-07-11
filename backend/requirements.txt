@@ -1,0 +1,10 @@
+fastapi>=0.110
+uvicorn[standard]>=0.29
+pydantic[email]>=2.6
+anthropic[bedrock]>=0.49
+razorpay>=1.4
+bcrypt>=4.1
+PyJWT>=2.8
+pyswisseph>=2.10
+boto3>=1.34
+google-auth>=2.28

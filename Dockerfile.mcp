@@ -1,0 +1,16 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+# python:3.11 matches pyswisseph's prebuilt manylinux wheels - no compiler needed.
+COPY mcp_server/requirements.txt /app/mcp_server/requirements.txt
+RUN pip install --no-cache-dir -r /app/mcp_server/requirements.txt
+
+COPY engine /app/engine
+COPY mcp_server /app/mcp_server
+
+ENV PYTHONUNBUFFERED=1
+ENV MCP_TRANSPORT=http
+ENV MCP_PORT=8100
+
+EXPOSE 8100
+CMD ["python", "/app/mcp_server/server.py"]

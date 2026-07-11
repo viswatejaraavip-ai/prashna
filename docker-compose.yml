@@ -1,0 +1,48 @@
+services:
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      DYNAMODB_TABLE: udhyath
+      DYNAMODB_ENDPOINT_URL: http://dynamo:8000
+      # Dummy credentials for DynamoDB Local
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-local}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-local}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      INFERENCE_PROVIDER: ${INFERENCE_PROVIDER:-bedrock}
+      # Only used when INFERENCE_PROVIDER=anthropic
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-me}
+      ALLOW_DEV_TOPUP: "1"     # local dev only - never set in production
+      EMAIL_MODE: dev          # OTP echoed in responses locally
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-}
+      RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET:-}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8000}
+      BILLING_MARGIN: ${BILLING_MARGIN:-1.25}
+      SESSION_FEE_UNITS: ${SESSION_FEE_UNITS:-5000}
+      USD_TO_WALLET_RATE: ${USD_TO_WALLET_RATE:-90}
+      API_CALL_FEE_UNITS: ${API_CALL_FEE_UNITS:-100}
+    depends_on:
+      - dynamo
+
+  mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile.mcp
+    ports:
+      - "8100:8100"
+    environment:
+      # Hosted MCP bills per tool call through the web API using the caller's
+      # Authorization: Bearer udh_... token.
+      UDHYATH_API_URL: http://web:8000
+      MCP_REQUIRE_TOKEN: "1"
+    depends_on:
+      - web
+
+  dynamo:
+    image: amazon/dynamodb-local:latest
+    command: "-jar DynamoDBLocal.jar -inMemory -sharedDb"
+    ports:
+      - "8001:8000"

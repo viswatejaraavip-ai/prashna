@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+
+# Local data / logs
+*.db
+*.log
+backend/local.db
+
+# Terraform (state + secrets; deploy/terraform/.gitignore also covers these)
+deploy/terraform/.terraform/
+deploy/terraform/*.tfstate
+deploy/terraform/*.tfstate.backup
+deploy/terraform/terraform.tfvars
+deploy/terraform/.terraform.lock.hcl
+
+# Env files with secrets (keep .env.example)
+.env
+.env.local
+
+# OS
+.DS_Store
