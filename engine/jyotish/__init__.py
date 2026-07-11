@@ -9,6 +9,7 @@ from .api import (  # noqa: F401
     current_dasha,
     dasha_periods,
     kp_chart,
+    nadi_analysis,
     panchanga_for,
     panchanga_now,
     transit_year,

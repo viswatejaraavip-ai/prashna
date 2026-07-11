@@ -35,6 +35,11 @@ AYANAMSAS = {
     "yukteshwar": swe.SIDM_YUKTESHWAR,
 }
 
+# True node is the default (KP convention, and what most modern Indian
+# software uses). Set NODE_TYPE=mean for the mean node.
+_NODE_ID = swe.MEAN_NODE if os.environ.get("NODE_TYPE", "true").lower() == "mean" \
+    else swe.TRUE_NODE
+
 _PLANET_IDS = {
     "Sun": swe.SUN,
     "Moon": swe.MOON,
@@ -43,7 +48,7 @@ _PLANET_IDS = {
     "Jupiter": swe.JUPITER,
     "Venus": swe.VENUS,
     "Saturn": swe.SATURN,
-    "Rahu": swe.MEAN_NODE,  # mean node; swe.TRUE_NODE for true node
+    "Rahu": _NODE_ID,
 }
 
 

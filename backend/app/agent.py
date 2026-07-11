@@ -131,6 +131,12 @@ TOOLS = [
                 {"at_iso": {"type": "string"}}),
     _birth_tool("birth_panchanga",
                 "Tithi, paksha, vara, nakshatra, yoga, karana at birth."),
+    _birth_tool("nadi_analysis",
+                "Nadi analysis: Meena stellar delivery chains (planet delivers "
+                "its star lord's houses; deputies), BNN karakas + sign links, "
+                "nadi-amsa (D-150), dignity, and an 80-year Jupiter jeeva "
+                "timeline with natal contacts. Use for Nadi-style readings and "
+                "life-chapter timing via Jupiter's movement."),
     _birth_tool("kp_chart",
                 "KP (Krishnamurti Paddhati): sign/star/sub/sub-sub lords for all "
                 "planets and the 12 Placidus cusps. Uses KP ayanamsa. Use for "
@@ -196,6 +202,8 @@ def execute_tool(name: str, args: Dict) -> str:
             result = jyotish_api.panchanga_for(birth)
         elif name == "kp_chart":
             result = jyotish_api.kp_chart(birth)
+        elif name == "nadi_analysis":
+            result = jyotish_api.nadi_analysis(birth)
         elif name == "ashtakavarga":
             result = jyotish_api.ashtakavarga_chart(birth)
         elif name == "transits":

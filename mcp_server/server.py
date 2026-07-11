@@ -222,6 +222,22 @@ def panchanga_today(latitude: Optional[float] = None, longitude: Optional[float]
 
 
 @mcp.tool()
+def nadi_analysis(year: int, month: int, day: int, hour: int, minute: int,
+                  latitude: float, longitude: float, tz_name: Optional[str] = None,
+                  utc_offset_hours: Optional[float] = None,
+                  ayanamsa: str = "lahiri") -> dict:
+    """Nadi analysis: Meena stellar delivery (each planet delivers its star
+    lord's houses; deputies = planets in its stars), Bhrigu Nandi Nadi karakas
+    and sign-links (conjunction/trine/opposition/2-12), nadi-amsa (D-150),
+    planetary dignity, and an 80-year Jupiter (jeeva) transit timeline with
+    contacts to natal points - the BNN life-chapter clock."""
+    b = _birth(year, month, day, hour, minute, latitude, longitude,
+               tz_name, utc_offset_hours, ayanamsa)
+    remote = _remote("POST", "/v1/nadi-analysis", b)
+    return remote if remote is not None else api.nadi_analysis(b)
+
+
+@mcp.tool()
 def year_transits(year: int, ayanamsa: str = "lahiri",
                   include_moon: bool = False) -> dict:
     """Transit timeline for a calendar year: where each planet will be -

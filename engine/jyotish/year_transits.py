@@ -11,7 +11,7 @@ from typing import Dict, List, Optional
 import swisseph as swe
 
 from . import ephemeris
-from .constants import SIGNS
+from .constants import NAKSHATRAS, NAKSHATRA_SPAN, SIGNS
 
 # Scan step in days, chosen safely below each planet's shortest sign stay.
 _STEP_DAYS = {
@@ -24,7 +24,11 @@ _STATION_PLANETS = ["Mercury", "Venus", "Mars", "Jupiter", "Saturn"]
 _PLANET_IDS = {
     "Sun": swe.SUN, "Moon": swe.MOON, "Mercury": swe.MERCURY,
     "Venus": swe.VENUS, "Mars": swe.MARS, "Jupiter": swe.JUPITER,
-    "Saturn": swe.SATURN, "Rahu": swe.MEAN_NODE,
+    "Saturn": swe.SATURN,
+    # Mean node for ingress timelines: the true node oscillates across sign
+    # boundaries for weeks, which would flood the table with false ingresses.
+    # (Charts use the true node; see ephemeris._NODE_ID.)
+    "Rahu": swe.MEAN_NODE,
 }
 
 
@@ -71,6 +75,7 @@ def year_transits(year: int, ayanamsa: str = "lahiri",
         planets.remove("Moon")
 
     ingresses: List[Dict] = []
+    nak_ingresses: List[Dict] = []
     stations: List[Dict] = []
     occupancy: Dict[str, List[Dict]] = {}
 
@@ -79,6 +84,7 @@ def year_transits(year: int, ayanamsa: str = "lahiri",
         jd = jd_start
         lon, speed = _calc(jd, planet)
         sign = int(lon // 30)
+        nak = int(lon / NAKSHATRA_SPAN) % 27
         periods = [{"sign": SIGNS[sign], "from": _jd_to_iso(jd_start), "to": None}]
 
         while jd < jd_end:
@@ -105,6 +111,22 @@ def year_transits(year: int, ayanamsa: str = "lahiri",
                 periods.append({"sign": SIGNS[new_sign], "from": when, "to": None})
                 sign = new_sign
 
+            nak2 = int(lon2 / NAKSHATRA_SPAN) % 27
+            if nak2 != nak:
+                def nak_changed(j, p=planet, n=nak):
+                    return int(_calc(j, p)[0] / NAKSHATRA_SPAN) % 27 != n
+
+                jd_n = _bisect(planet, jd, jd_next, nak_changed)
+                lon_n, speed_n = _calc(jd_n, planet)
+                new_nak = int(lon_n / NAKSHATRA_SPAN) % 27
+                nak_ingresses.append({
+                    "planet": planet, "date": _jd_to_iso(jd_n),
+                    "from_nakshatra": NAKSHATRAS[nak],
+                    "to_nakshatra": NAKSHATRAS[new_nak],
+                    "retrograde": bool(speed_n < 0) and planet not in ("Sun", "Moon"),
+                })
+                nak = new_nak
+
             if planet in _STATION_PLANETS and (speed < 0) != (speed2 < 0):
                 def speed_flipped(j, p=planet, was_neg=(speed < 0)):
                     return (_calc(j, p)[1] < 0) != was_neg
@@ -124,6 +146,7 @@ def year_transits(year: int, ayanamsa: str = "lahiri",
         occupancy[planet] = periods
 
     ingresses.sort(key=lambda e: e["date"])
+    nak_ingresses.sort(key=lambda e: e["date"])
     stations.sort(key=lambda e: e["date"])
     return {
         "year": year,
@@ -131,5 +154,6 @@ def year_transits(year: int, ayanamsa: str = "lahiri",
         "note": "All times UTC; sidereal positions.",
         "occupancy": occupancy,
         "ingresses": ingresses,
+        "nakshatra_ingresses": nak_ingresses,
         "stations": stations,
     }

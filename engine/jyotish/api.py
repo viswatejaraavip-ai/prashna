@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
 from . import ashtakavarga as av
-from . import charts, dasha, dasha_systems, ephemeris, kp, panchanga, vargas
+from . import charts, dasha, dasha_systems, ephemeris, kp, nadi, panchanga, vargas
 from . import year_transits as yt
 from .constants import SIGNS, VARGA_LIST, VARGA_SIGNIFICATIONS
 
@@ -203,11 +203,13 @@ def kp_chart(birth: Dict) -> Dict:
         row["retrograde"] = data["retrograde"]
         planets[name] = row
 
+    planet_lons = {name: data["longitude"] for name, data in positions.items()}
     return {
-        "system": "KP (Krishnamurti Paddhati), Placidus cusps",
+        "system": "KP (Krishnamurti Paddhati), Placidus cusps, true node",
         "meta": b.meta(),
         "cusps": kp.cusp_table(list(cusps)),
         "planets": planets,
+        "significators": kp.significator_tables(planet_lons, list(cusps)[:12]),
     }
 
 
@@ -250,6 +252,19 @@ def panchanga_now(latitude: Optional[float] = None, longitude: Optional[float] =
         entry["retrograde"] = data["retrograde"]
         entry["nakshatra"] = panchanga.nakshatra_of(data["longitude"])
         result["transits"][name] = entry
+    return result
+
+
+def nadi_analysis(birth: Dict) -> Dict:
+    """Nadi analysis: Meena stellar delivery chains, BNN karakas and
+    sign-links, nadi-amsa (D-150), dignity, Jupiter jeeva timeline."""
+    b = BirthData.from_dict(birth)
+    positions = ephemeris.planet_positions(b.jd, b.ayanamsa)
+    asc = ephemeris.ascendant(b.jd, b.latitude, b.longitude, b.ayanamsa)
+    cusps, _ascmc = ephemeris.houses(b.jd, b.latitude, b.longitude, b"P", b.ayanamsa)
+    planet_lons = {name: data["longitude"] for name, data in positions.items()}
+    result = nadi.analyze(planet_lons, asc, list(cusps)[:12], b.utc, b.ayanamsa)
+    result["meta"] = b.meta()
     return result
 
 
