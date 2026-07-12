@@ -384,6 +384,59 @@ def execute_tool(name: str, args: Dict) -> str:
         return json.dumps({"error": str(exc)})
 
 
+# ---------------- AICredits dev-sandbox provider (OpenAI-compatible) ------
+
+def _compat_request(payload: Dict) -> Dict:
+    import requests
+    resp = requests.post(
+        config.AICREDITS_BASE_URL.rstrip("/") + "/chat/completions",
+        headers={"Authorization": "Bearer " + config.AICREDITS_API_KEY,
+                 "Content-Type": "application/json"},
+        json=payload, timeout=180)
+    if resp.status_code >= 400:
+        raise RuntimeError("AICredits %s: %s" % (resp.status_code, resp.text[:300]))
+    return resp.json()
+
+
+def compat_simple(model: str, system: str, user: str, max_tokens: int = 16) -> str:
+    """One-shot completion on the sandbox gateway (used by the guard)."""
+    r = _compat_request({"model": model, "max_tokens": max_tokens,
+                         "messages": [{"role": "system", "content": system},
+                                      {"role": "user", "content": user}]})
+    return (r["choices"][0]["message"].get("content") or "").strip()
+
+
+def _run_agent_compat(history: List[Dict]) -> Tuple[str, int, int]:
+    """Tool-use loop over an OpenAI-compatible gateway (dev sandbox only)."""
+    msgs: List[Dict] = ([{"role": "system", "content": SYSTEM_PROMPT}]
+                        + list(history))
+    oa_tools = [{"type": "function",
+                 "function": {"name": t["name"], "description": t["description"],
+                              "parameters": t["input_schema"]}} for t in TOOLS]
+    total_in = total_out = 0
+    reply = ""
+    for _ in range(config.AGENT_MAX_TOOL_ITERATIONS):
+        r = _compat_request({"model": config.AICREDITS_MODEL,
+                             "max_tokens": config.AGENT_MAX_TOKENS,
+                             "messages": msgs, "tools": oa_tools})
+        usage = r.get("usage", {})
+        total_in += usage.get("prompt_tokens", 0)
+        total_out += usage.get("completion_tokens", 0)
+        msg = r["choices"][0]["message"]
+        calls = msg.get("tool_calls") or []
+        if calls:
+            msgs.append(msg)
+            for tc in calls:
+                args = json.loads(tc["function"].get("arguments") or "{}")
+                msgs.append({"role": "tool", "tool_call_id": tc["id"],
+                             "content": execute_tool(tc["function"]["name"], args)})
+            continue
+        reply = (msg.get("content") or "").strip()
+        break
+    return (reply or "(The astrologer had nothing further to add.)",
+            total_in, total_out)
+
+
 def run_agent(history: List[Dict]) -> Tuple[str, int, int]:
     """Run the tool-use loop over the conversation.
 
@@ -391,6 +444,9 @@ def run_agent(history: List[Dict]) -> Tuple[str, int, int]:
     the newest user message. Returns (reply_text, input_tokens, output_tokens)
     with token usage summed across every API call in the loop.
     """
+    if config.INFERENCE_PROVIDER == "aicredits":
+        return _run_agent_compat(history)
+
     messages: List[Dict] = list(history)
     total_in = 0
     total_out = 0

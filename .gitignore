@@ -32,3 +32,4 @@ android/.kotlin/
 
 # App binary served from the site but not committed
 backend/static/udhyath.apk
+backend/.env.dev

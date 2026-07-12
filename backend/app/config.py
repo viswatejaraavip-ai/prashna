@@ -72,6 +72,16 @@ AGENT_FOLLOWUP_FEE_UNITS = int(
 SESSION_FEE_UNITS = int(os.environ.get("SESSION_FEE_UNITS", "0"))
 # Reject a new message if the wallet has less than this left (default Rs 10).
 MIN_BALANCE_UNITS = int(os.environ.get("MIN_BALANCE_UNITS", "1000"))
+# Dev sandbox provider: AICredits (OpenAI-compatible gateway, INR/UPI wallet).
+# NEVER the production default — no prompt caching, adds a third party in the
+# data path. Select with INFERENCE_PROVIDER=aicredits for local development.
+AICREDITS_API_KEY = os.environ.get("AICREDITS_API_KEY", "")
+AICREDITS_BASE_URL = os.environ.get("AICREDITS_BASE_URL",
+                                    "https://api.aicredits.in/v1")
+AICREDITS_MODEL = os.environ.get("AICREDITS_MODEL", "anthropic/claude-opus-4.8")
+AICREDITS_GUARD_MODEL = os.environ.get("AICREDITS_GUARD_MODEL",
+                                       "anthropic/claude-haiku-4.5")
+
 # Guardrails: classifier gate in front of the agent + per-user rate limit.
 GUARD_ENABLED = os.environ.get("GUARD_ENABLED", "1") not in ("0", "false", "")
 GUARD_MODEL = os.environ.get("GUARD_MODEL", "claude-haiku-4-5")

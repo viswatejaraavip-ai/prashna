@@ -163,6 +163,16 @@ def classify(client, text: str) -> str:
     """Route a message with a small fast model. Fails open to ASTRO."""
     if not config.GUARD_ENABLED:
         return "ASTRO"
+    if config.INFERENCE_PROVIDER == "aicredits":
+        try:
+            from . import agent as agent_mod
+            word = agent_mod.compat_simple(config.AICREDITS_GUARD_MODEL,
+                                           _GUARD_SYSTEM, text[:2000]).upper()
+            if word in ("ASTRO", "CHITCHAT", "OFF_TOPIC", "INJECTION"):
+                return word
+        except Exception as exc:
+            log.warning("sandbox guard unavailable (%s); failing open", exc)
+        return "ASTRO"
     try:
         resp = client.messages.create(
             model=config.GUARD_MODEL,
