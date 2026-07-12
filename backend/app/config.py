@@ -64,9 +64,9 @@ USD_TO_WALLET_RATE = _f("USD_TO_WALLET_RATE", 90.0)  # INR per USD; set 1.0 for 
 # and costs more; follow-ups ride the cached context. Token costs are still
 # recorded per message for margin analytics, but never shown or billed.
 AGENT_FIRST_QUESTION_FEE_UNITS = int(
-    os.environ.get("AGENT_FIRST_QUESTION_FEE_UNITS", "2000"))   # Rs 20
+    os.environ.get("AGENT_FIRST_QUESTION_FEE_UNITS", "10000"))  # Rs 100
 AGENT_FOLLOWUP_FEE_UNITS = int(
-    os.environ.get("AGENT_FOLLOWUP_FEE_UNITS", "1000"))         # Rs 10
+    os.environ.get("AGENT_FOLLOWUP_FEE_UNITS", "5000"))         # Rs 50
 # Legacy flat session-start fee — now 0 (the first-question premium plays
 # the guaranteed-minimum role instead).
 SESSION_FEE_UNITS = int(os.environ.get("SESSION_FEE_UNITS", "0"))
