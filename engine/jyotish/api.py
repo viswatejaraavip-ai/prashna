@@ -8,9 +8,11 @@ from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
 from . import ashtakavarga as av
-from . import charts, dasha, dasha_systems, doshas, ephemeris, kp, matching
+from . import charts, dasha, dasha_systems, doshas, ephemeris, festivals
+from . import gemstones, kp, lalkitab, locale as locale_mod, matching
 from . import muhurta as muhurta_mod
-from . import nadi, panchanga, vargas, yogas
+from . import nadi, panchanga, shadbala
+from . import vargas, varshphal as varshphal_mod, yogas
 from . import year_transits as yt
 from .constants import SIGNS, VARGA_LIST, VARGA_SIGNIFICATIONS
 
@@ -68,7 +70,7 @@ def birth_chart(birth: Dict) -> Dict:
         entry["house_whole_sign"] = charts.whole_sign_house(data["longitude"], asc)
         planets[name] = entry
 
-    return {
+    result = {
         "meta": b.meta(),
         "ascendant": charts.format_longitude(asc),
         "planets": planets,
@@ -76,6 +78,10 @@ def birth_chart(birth: Dict) -> Dict:
         "panchanga": panchanga.panchanga(
             positions["Sun"]["longitude"], positions["Moon"]["longitude"], b.local),
     }
+    i18n = locale_mod.bundle(birth.get("lang"))
+    if i18n:
+        result["i18n"] = i18n
+    return result
 
 
 def bhava_chart(birth: Dict) -> Dict:
@@ -419,6 +425,64 @@ def muhurta_of_day(date_iso: Optional[str] = None, latitude: float = 28.6139,
         except Exception:
             day = datetime.now(timezone.utc).date()
     return muhurta_mod.day_timings(day, latitude, longitude, tz_name)
+
+
+def shadbala_chart(birth: Dict) -> Dict:
+    """Six-fold planetary strength (BPHS): sthana, dig, kala, chesta,
+    naisargika and drik balas with rupas, requirements and ranking."""
+    b = BirthData.from_dict(birth)
+    result = shadbala.compute(b.jd, b.latitude, b.longitude, b.local, b.utc,
+                              b.ayanamsa)
+    result["meta"] = b.meta()
+    return result
+
+
+def lal_kitab(birth: Dict) -> Dict:
+    """Lal Kitab essentials: house chart, pakka ghar, rins (debts) with
+    the traditional remedies."""
+    b = BirthData.from_dict(birth)
+    positions = {k: v["longitude"] for k, v in
+                 ephemeris.planet_positions(b.jd, b.ayanamsa).items()}
+    asc = ephemeris.ascendant(b.jd, b.latitude, b.longitude, b.ayanamsa)
+    result = lalkitab.analyze(positions, asc)
+    result["meta"] = b.meta()
+    return result
+
+
+def varshphal(birth: Dict, year: int) -> Dict:
+    """Tajika annual chart: varshapravesh moment, varsha lagna, muntha,
+    planets and mudda dasha for the given year."""
+    return varshphal_mod.compute(birth, int(year))
+
+
+def gemstone_recommendations(birth: Dict) -> Dict:
+    """Gemstones from the lagna: life stone, fortune stone, wisdom stone
+    with metal/finger/day/mantra, plus stones to avoid."""
+    b = BirthData.from_dict(birth)
+    asc = ephemeris.ascendant(b.jd, b.latitude, b.longitude, b.ayanamsa)
+    result = gemstones.recommend(asc)
+    result["meta"] = b.meta()
+    return result
+
+
+def festival_calendar(year: int, latitude: float = 28.6139,
+                      longitude: float = 77.2090,
+                      tz_name: str = "Asia/Kolkata") -> Dict:
+    """Hindu festival dates and sankrantis for a calendar year."""
+    year = int(year)
+    if not 1900 <= year <= 2300:
+        raise ValueError("year must be between 1900 and 2300")
+    return festivals.calendar(year, latitude, longitude, tz_name)
+
+
+def translations(lang: str) -> Dict:
+    """Localized names (planets, signs, nakshatras, weekdays) for one of:
+    hi, bn, mr, ta, te, ml, kn."""
+    out = locale_mod.bundle(lang)
+    if out is None:
+        raise ValueError("lang must be one of: %s"
+                         % ", ".join(l for l in locale_mod.LANGUAGES if l != "en"))
+    return out
 
 
 def panchanga_for(birth: Dict) -> Dict:

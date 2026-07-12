@@ -183,6 +183,38 @@ TOOLS = [
                 "Classical yogas present in the chart: Panch Mahapurusha, "
                 "Gajakesari, Budhaditya, lunar/solar yogas, Vipareeta Raja, "
                 "Parivartana, Dhana, Raja, Neecha Bhanga."),
+    _birth_tool("shadbala",
+                "Shadbala six-fold strength (BPHS) for the 7 classical "
+                "planets: sthana/dig/kala/chesta/naisargika/drik in rupas "
+                "with required minima and ranking. Use to judge which "
+                "planets can actually deliver their promises."),
+    _birth_tool("lal_kitab",
+                "Lal Kitab essentials: house chart, pakka ghar occupancy, "
+                "rins (karmic debts) with traditional remedies."),
+    _birth_tool("varshphal",
+                "Varshphal (Tajika annual/solar-return chart) for a given "
+                "year: varshapravesh, varsha lagna, muntha, planets, mudda "
+                "dasha. Use for 'how will year X be' questions.",
+                {"year_of_varsha": {"type": "integer"}}, ["year_of_varsha"]),
+    _birth_tool("gemstones",
+                "Gemstone recommendations from the lagna: life, fortune and "
+                "wisdom stones with metal/finger/day/mantra and stones to "
+                "avoid."),
+    {
+        "name": "festival_calendar",
+        "description": "Hindu festival dates and sankrantis for a calendar "
+                       "year (sidereal, amanta). Use for 'when is Diwali "
+                       "next year' style questions.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "year": {"type": "integer"},
+                "latitude": {"type": "number"}, "longitude": {"type": "number"},
+                "tz_name": {"type": "string"},
+            },
+            "required": ["year"],
+        },
+    },
     {
         "name": "match_making",
         "description": "Kundali matching between two people: Ashtakoot "
@@ -278,6 +310,19 @@ def execute_tool(name: str, args: Dict) -> str:
             result = jyotish_api.dosha_analysis(birth)
         elif name == "yoga_analysis":
             result = jyotish_api.yoga_analysis(birth)
+        elif name == "shadbala":
+            result = jyotish_api.shadbala_chart(birth)
+        elif name == "lal_kitab":
+            result = jyotish_api.lal_kitab(birth)
+        elif name == "varshphal":
+            result = jyotish_api.varshphal(birth, rest["year_of_varsha"])
+        elif name == "gemstones":
+            result = jyotish_api.gemstone_recommendations(birth)
+        elif name == "festival_calendar":
+            result = jyotish_api.festival_calendar(
+                args["year"], args.get("latitude", 28.6139),
+                args.get("longitude", 77.2090),
+                args.get("tz_name", "Asia/Kolkata"))
         elif name == "match_making":
             result = jyotish_api.match_making(args["boy"], args["girl"])
         elif name == "muhurta_of_day":

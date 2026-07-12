@@ -258,6 +258,73 @@ def full_analysis(year: int, month: int, day: int, hour: int, minute: int,
 
 
 @mcp.tool()
+def shadbala(year: int, month: int, day: int, hour: int, minute: int,
+             latitude: float, longitude: float, tz_name: Optional[str] = None,
+             utc_offset_hours: Optional[float] = None,
+             ayanamsa: str = "lahiri") -> dict:
+    """Shadbala six-fold planetary strength (BPHS): sthana, dig, kala,
+    chesta, naisargika and drik balas in virupas/rupas for the 7 classical
+    planets, with required minima, strength flags and ranking."""
+    b = _birth(year, month, day, hour, minute, latitude, longitude,
+               tz_name, utc_offset_hours, ayanamsa)
+    remote = _remote("POST", "/v1/shadbala", b)
+    return remote if remote is not None else api.shadbala_chart(b)
+
+
+@mcp.tool()
+def lal_kitab(year: int, month: int, day: int, hour: int, minute: int,
+              latitude: float, longitude: float, tz_name: Optional[str] = None,
+              utc_offset_hours: Optional[float] = None) -> dict:
+    """Lal Kitab essentials: house chart, pakka ghar (permanent house)
+    occupancy, and rins (karmic debts) with the traditional remedies."""
+    b = _birth(year, month, day, hour, minute, latitude, longitude,
+               tz_name, utc_offset_hours, "lahiri")
+    remote = _remote("POST", "/v1/lal-kitab", b)
+    return remote if remote is not None else api.lal_kitab(b)
+
+
+@mcp.tool()
+def varshphal(year: int, month: int, day: int, hour: int, minute: int,
+              latitude: float, longitude: float, year_of_varsha: int,
+              tz_name: Optional[str] = None,
+              utc_offset_hours: Optional[float] = None) -> dict:
+    """Varshphal (Tajika annual chart) for year_of_varsha: exact
+    varshapravesh (solar return), varsha lagna, muntha, planet placements
+    and the mudda dasha timeline of the year."""
+    b = _birth(year, month, day, hour, minute, latitude, longitude,
+               tz_name, utc_offset_hours, "lahiri")
+    remote = _remote("POST", "/v1/varshphal", dict(b, year_of_varsha=year_of_varsha))
+    return remote if remote is not None else api.varshphal(b, year_of_varsha)
+
+
+@mcp.tool()
+def gemstones(year: int, month: int, day: int, hour: int, minute: int,
+              latitude: float, longitude: float, tz_name: Optional[str] = None,
+              utc_offset_hours: Optional[float] = None) -> dict:
+    """Gemstone recommendations from the lagna: life stone (lagna lord),
+    fortune stone (9th lord) and wisdom stone (5th lord) with metal, finger,
+    day and mantra — plus stones to avoid."""
+    b = _birth(year, month, day, hour, minute, latitude, longitude,
+               tz_name, utc_offset_hours, "lahiri")
+    remote = _remote("POST", "/v1/gemstones", b)
+    return remote if remote is not None else api.gemstone_recommendations(b)
+
+
+@mcp.tool()
+def festival_calendar(year: int, latitude: float = 28.6139,
+                      longitude: float = 77.2090,
+                      tz_name: str = "Asia/Kolkata") -> dict:
+    """Hindu festival calendar for a year: Diwali, Holi, Navaratri,
+    Janmashtami, Shivaratri and more (sidereal, amanta convention) plus all
+    12 sankrantis with exact ingress times."""
+    remote = _remote("GET", "/v1/festivals",
+                     params={"year": year, "latitude": latitude,
+                             "longitude": longitude, "tz_name": tz_name})
+    return remote if remote is not None else api.festival_calendar(
+        year, latitude, longitude, tz_name)
+
+
+@mcp.tool()
 def match_making(boy_year: int, boy_month: int, boy_day: int, boy_hour: int,
                  boy_minute: int, boy_latitude: float, boy_longitude: float,
                  girl_year: int, girl_month: int, girl_day: int, girl_hour: int,
