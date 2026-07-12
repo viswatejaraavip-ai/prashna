@@ -52,10 +52,17 @@ class VoiceManager(
         }
         tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
             override fun onStart(id: String?) {}
-            override fun onError(id: String?) { onState(VoiceState.IDLE) }
+            override fun onError(id: String?) {
+                if (id == "udhyath-done") onState(VoiceState.IDLE)
+            }
             override fun onDone(id: String?) {
-                onState(VoiceState.IDLE)
-                onSpeechDone?.invoke()
+                // Replies are queued as many chunks; only the LAST one ends
+                // the speaking state — reacting to every chunk cut speech
+                // short (live mode would start listening and stop the TTS).
+                if (id == "udhyath-done") {
+                    onState(VoiceState.IDLE)
+                    onSpeechDone?.invoke()
+                }
             }
         })
     }
@@ -104,8 +111,17 @@ class VoiceManager(
         if (!ttsReady) { pendingSpeech = text to langTag; return }
         engine.language = Locale.forLanguageTag(langTag)
         onState(VoiceState.SPEAKING)
-        // Long agent replies exceed the TTS per-utterance limit; chunk on sentences.
-        val chunks = text.split(Regex("(?<=[.!?।॥])\\s+")).filter { it.isNotBlank() }
+        // Markdown reads terribly aloud — strip formatting before speaking.
+        val spoken = text
+            .replace(Regex("[*_#`>|]+"), " ")
+            .replace(Regex("\\[(.*?)\\]\\(.*?\\)"), "$1")
+            .replace(Regex("\\s{2,}"), " ")
+        // Long agent replies exceed the TTS per-utterance limit; chunk on
+        // sentences, then hard-split any chunk still over the engine cap.
+        val cap = TextToSpeech.getMaxSpeechInputLength() - 100
+        val chunks = spoken.split(Regex("(?<=[.!?।॥])\\s+"))
+            .filter { it.isNotBlank() }
+            .flatMap { it.chunked(cap.coerceAtLeast(500)) }
         chunks.forEachIndexed { i, chunk ->
             engine.speak(chunk,
                 if (i == 0) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD,
