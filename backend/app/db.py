@@ -165,6 +165,59 @@ def adjust_balance(email: str, delta_units: int) -> int:
         raise
 
 
+# ---------------- Free trial (one per account AND per device) ----------------
+
+def claim_trial(email: str, device_hash: str, credit_units: int) -> bool:
+    """Grant the first-question trial: one fee-waived session + starter credit.
+
+    Atomic across both guards — the device must never have claimed a trial
+    (DEVICE# item) and the account must never have (trial_used attribute).
+    Returns False if either side was already used."""
+    # Resource-derived client: plain Python values, boto3 serializes them.
+    client = table().meta.client
+    try:
+        client.transact_write_items(TransactItems=[
+            {"Put": {
+                "TableName": config.DYNAMODB_TABLE,
+                "Item": {"PK": "DEVICE#" + device_hash, "SK": "TRIAL",
+                         "email": email, "created_at": _now()},
+                "ConditionExpression": "attribute_not_exists(PK)",
+            }},
+            {"Update": {
+                "TableName": config.DYNAMODB_TABLE,
+                "Key": {"PK": "USER#" + email, "SK": "PROFILE"},
+                "UpdateExpression": "SET trial_used = :t, free_sessions = :one "
+                                    "ADD balance_units :credit",
+                "ConditionExpression": "attribute_exists(PK) AND "
+                                       "attribute_not_exists(trial_used)",
+                "ExpressionAttributeValues": {
+                    ":t": True, ":one": 1, ":credit": credit_units},
+            }},
+        ])
+        return True
+    except ClientError as exc:
+        if exc.response["Error"]["Code"] in ("TransactionCanceledException",
+                                             "ConditionalCheckFailedException"):
+            return False
+        raise
+
+
+def consume_free_session(email: str) -> bool:
+    """Use up one fee-waived session if the user has any. Atomic."""
+    try:
+        table().update_item(
+            Key={"PK": "USER#" + email, "SK": "PROFILE"},
+            UpdateExpression="ADD free_sessions :neg",
+            ConditionExpression="free_sessions >= :one",
+            ExpressionAttributeValues={":neg": Decimal(-1), ":one": Decimal(1)},
+        )
+        return True
+    except ClientError as exc:
+        if exc.response["Error"]["Code"] == "ConditionalCheckFailedException":
+            return False
+        raise
+
+
 # ---------------- API keys ----------------
 
 def create_api_key(email: str, name: str, prefix: str, key_hash: str) -> Dict:

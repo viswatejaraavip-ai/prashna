@@ -238,6 +238,26 @@ def nadi_analysis(year: int, month: int, day: int, hour: int, minute: int,
 
 
 @mcp.tool()
+def full_analysis(year: int, month: int, day: int, hour: int, minute: int,
+                  latitude: float, longitude: float, tz_name: Optional[str] = None,
+                  utc_offset_hours: Optional[float] = None,
+                  ayanamsa: str = "lahiri", at_iso: Optional[str] = None) -> dict:
+    """Cross-system synthesis bundle in ONE call - the right first tool for
+    any full reading or prediction. Returns rasi (D-1), navamsa (D-9), bhava
+    chalit placements, KP sub lords + planet/house significator tables,
+    Ashtakavarga BAV/SAV, complete Nadi analysis, current transits, and ALL
+    FOUR dasha systems (vimshottari, yogini, chara, kalachakra) with full
+    maha timelines plus the exact maha/antar running at at_iso (default now).
+    Billed as 3 API calls. Cross-check houses (whole-sign vs chalit),
+    strength (SAV/BAV), KP precision, Nadi delivery and multi-dasha timing
+    before predicting."""
+    b = _birth(year, month, day, hour, minute, latitude, longitude,
+               tz_name, utc_offset_hours, ayanamsa)
+    remote = _remote("POST", "/v1/full-analysis", dict(b, at_iso=at_iso))
+    return remote if remote is not None else api.full_analysis(b, at_iso)
+
+
+@mcp.tool()
 def year_transits(year: int, ayanamsa: str = "lahiri",
                   include_moon: bool = False) -> dict:
     """Transit timeline for a calendar year: where each planet will be -

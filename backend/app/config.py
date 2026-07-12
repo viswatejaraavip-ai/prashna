@@ -65,6 +65,10 @@ USD_TO_WALLET_RATE = _f("USD_TO_WALLET_RATE", 90.0)  # INR per USD; set 1.0 for 
 SESSION_FEE_UNITS = int(os.environ.get("SESSION_FEE_UNITS", "5000"))
 # Reject a new message if the wallet has less than this left (default Rs 10).
 MIN_BALANCE_UNITS = int(os.environ.get("MIN_BALANCE_UNITS", "1000"))
+# First-question trial for the mobile app: starter credit (paise) granted once
+# per account AND once per device (hashed device id). The trial session's flat
+# fee is waived; this credit covers the token charges of ~1-2 questions.
+TRIAL_CREDIT_UNITS = int(os.environ.get("TRIAL_CREDIT_UNITS", "2000"))
 # Allowed top-up amounts in whole currency (rupees), shown as buttons in the UI.
 TOPUP_OPTIONS = [100, 200, 500, 1000]
 # Price of one metered /v1 API call (also one MCP tool call), in paise.

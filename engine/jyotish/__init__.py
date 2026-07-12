@@ -8,6 +8,7 @@ from .api import (  # noqa: F401
     birth_chart,
     current_dasha,
     dasha_periods,
+    full_analysis,
     kp_chart,
     nadi_analysis,
     panchanga_for,

@@ -39,7 +39,12 @@ def credit(email: str, units: int) -> int:
 
 
 def start_session(email: str) -> Dict:
-    """Open a chat session, charging the flat session fee upfront."""
+    """Open a chat session, charging the flat session fee upfront.
+
+    A trial user's first session consumes their fee waiver instead — the
+    starter credit then covers the per-reply token charges."""
+    if db.consume_free_session(email):
+        return db.create_session(email, 0)
     charge(email, config.SESSION_FEE_UNITS)
     return db.create_session(email, config.SESSION_FEE_UNITS)
 

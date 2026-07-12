@@ -278,6 +278,89 @@ def transit_year(year: int, ayanamsa: str = "lahiri",
     return yt.year_transits(year, ayanamsa, include_moon)
 
 
+def _as_dt(value) -> datetime:
+    dt = datetime.fromisoformat(value) if isinstance(value, str) else value
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+
+def _active_chain(mahadashas: List[Dict], at: datetime) -> Optional[Dict]:
+    """The maha (and its antar) covering `at` in any dasha system's timeline."""
+    for maha in mahadashas:
+        if _as_dt(maha["start"]) <= at < _as_dt(maha["end"]):
+            active = {"lord": maha["lord"], "start": maha["start"], "end": maha["end"]}
+            for antar in maha.get("antardashas", []):
+                if _as_dt(antar["start"]) <= at < _as_dt(antar["end"]):
+                    active["antardasha"] = antar
+                    break
+            return active
+    return None
+
+
+def full_analysis(birth: Dict, at_iso: Optional[str] = None) -> Dict:
+    """One-call synthesis bundle for cross-system readings: rasi (D-1),
+    navamsa (D-9), bhava chalit, KP with significator tables, Ashtakavarga,
+    Nadi analysis, current transits, and ALL FOUR dasha systems — each with
+    its full maha timeline, the running maha/antar at `at`, and antardasha
+    detail for the running maha. Built so a prediction can be checked across
+    houses (whole-sign vs chalit), strength (SAV/BAV), precision (KP sub
+    lords), delivery (Nadi stellar chains) and multi-dasha timing at once."""
+    at = _as_dt(at_iso) if at_iso else datetime.now(timezone.utc)
+
+    rasi = birth_chart(birth)
+    d9 = varga_chart(birth, "D9")
+    bhava = bhava_chart(birth)
+    kp_data = kp_chart(birth)
+    av_data = ashtakavarga_chart(birth)
+    nadi_data = nadi_analysis(birth)
+
+    # Bound the Jupiter jeeva timeline to a working window around `at`.
+    birth_year = int(birth["year"])
+    age_now = at.year - birth_year
+    nadi_data["jupiter_timeline"] = [
+        row for row in nadi_data["jupiter_timeline"]
+        if age_now - 2 <= row["age"] <= age_now + 15
+    ]
+    nadi_data["jupiter_timeline_window"] = "ages %d-%d (call nadi_analysis for all 80 years)" % (
+        max(age_now - 2, 0), age_now + 15)
+
+    dashas = {"at": at.isoformat()}
+    for system in DASHA_SYSTEMS:
+        timeline = dasha_periods(birth, 2, system)
+        running = _active_chain(timeline["mahadashas"], at)
+        dashas[system] = {
+            "system": timeline["system"],
+            "running": running,
+            "running_antardashas": next(
+                (m.get("antardashas", []) for m in timeline["mahadashas"]
+                 if running and m["lord"] == running["lord"]
+                 and m["start"] == running["start"]), []),
+            "mahadashas": [{"lord": m["lord"], "start": m["start"], "end": m["end"]}
+                           for m in timeline["mahadashas"]],
+        }
+    dashas["vimshottari_now_l3"] = current_dasha(birth, at.isoformat())
+
+    return {
+        "system": ("Full synthesis bundle: cross-check houses (whole-sign vs "
+                   "chalit), strength (Ashtakavarga), precision (KP sub lords "
+                   "and significators), delivery (Nadi stellar chains), and "
+                   "timing across all four dasha systems before predicting."),
+        "meta": rasi["meta"],
+        "rasi": {"ascendant": rasi["ascendant"], "planets": rasi["planets"],
+                 "houses": rasi["houses"]},
+        "birth_panchanga": rasi["panchanga"],
+        "navamsa": {"ascendant_sign": d9["ascendant_sign"],
+                    "placements": d9["placements"]},
+        "bhava_chalit": bhava["placements"],
+        "kp": {"cusps": kp_data["cusps"], "planets": kp_data["planets"],
+               "significators": kp_data["significators"]},
+        "ashtakavarga": {"sav": av_data["sav"], "sav_total": av_data["sav_total"],
+                         "bav_totals": av_data["bav_totals"], "bav": av_data["bav"]},
+        "nadi": {k: v for k, v in nadi_data.items() if k != "meta"},
+        "dashas": dashas,
+        "transits_now": transits(at.isoformat())["planets"],
+    }
+
+
 def panchanga_for(birth: Dict) -> Dict:
     """Panchanga (tithi/vara/nakshatra/yoga/karana) for the birth moment."""
     b = BirthData.from_dict(birth)

@@ -20,5 +20,12 @@ deploy/terraform/.terraform.lock.hcl
 .env
 .env.local
 
+# Android
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.kotlin/
+
 # OS
 .DS_Store

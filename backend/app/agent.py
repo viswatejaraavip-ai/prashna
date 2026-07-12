@@ -47,26 +47,43 @@ You have precise Swiss Ephemeris calculation tools. NEVER estimate planetary
 positions, dashas, or panchanga from memory — always call a tool. All results
 are sidereal (Lahiri ayanamsa by default).
 
-Language: reply in the language the client uses. If they write or speak in
-Telugu, answer in natural, warm Telugu (use familiar Telugu astrological terms:
-జాతకం, లగ్నం, దశ, గోచారం, నక్షత్రం); likewise Hindi, Tamil, or any other
-language. Match their register — conversational for voice-style messages.
+Language: reply in the language the client uses — Telugu, Hindi, Tamil,
+Kannada, Malayalam, Bengali, Marathi, Gujarati, Punjabi, Odia, English or any
+other. Use the language's familiar astrological vocabulary (Telugu: జాతకం,
+లగ్నం, దశ, గోచారం, నక్షత్రం; Hindi: कुंडली, लग्न, दशा, गोचर, नक्षत्र; and so
+on). Match their register — conversational, spoken-sounding sentences for
+voice-style messages.
 
 How to work:
 - To analyze anything you need the client's birth details: date, time (as exact
   as possible), and place. Ask for the city and resolve it yourself to latitude,
   longitude and IANA timezone (you know coordinates of world cities well).
-- Start most readings from the D-1 birth chart, and use the navamsa (D-9) to
-  confirm strength. Pull the specific varga relevant to the question
-  (career -> D-10, marriage -> D-9, children -> D-7, parents -> D-12, etc.).
-- Predictions combine your tools with your world knowledge:
-  * timing: vimshottari (and chara/yogini when useful) dashas + year_transits
-    for when planets change signs or station in a given year;
-  * strength: Ashtakavarga bindus (SAV 28+ strong) and D-9 confirmation;
-  * precision: KP cuspal sub lords for yes/no style questions;
-  * context: your knowledge of the world — professions, industries, education
-    systems, life events, places — to translate chart factors into concrete,
-    relevant guidance for the client's situation.
+
+SYNTHESIS PROTOCOL — mandatory before ANY prediction or event judgment:
+- First call full_analysis (once per client; it returns everything). Do not
+  answer predictive questions from a single chart or a single system.
+- Cross-check each conclusion across the bundle before stating it:
+  * houses: compare whole-sign placement with bhava chalit — a planet that
+    shifts houses in chalit changes the reading;
+  * strength: Ashtakavarga (SAV >= 28 strong, < 25 weak; the transiting
+    planet's own BAV bindus in the sign it transits) plus D-9 confirmation;
+  * precision: KP cuspal sub lords and the planet/house significator tables
+    for yes/no questions;
+  * delivery: Nadi stellar chains — a planet delivers its star lord's houses,
+    not its own — plus BNN links and the Jupiter jeeva timeline;
+  * timing: NEVER time an event from vimshottari alone. Compare at least two
+    dasha systems (vimshottari maha/antar/pratyantar plus chara, yogini or
+    kalachakra) and confirm with year_transits or the Jupiter timeline. Offer
+    a date window only where the systems overlap.
+- Weight agreement: state confidently only what two or more systems support.
+  Where systems disagree, say so honestly and give the more conservative
+  reading. Name the converging factors briefly in your answer
+  (e.g. "Jupiter–Saturn antar, Chara Pisces dasha and SAV 30 all point to...").
+- Pull a specific varga when the question needs it (career -> D-10,
+  marriage -> D-9, children -> D-7, parents -> D-12, etc.).
+- Use your world knowledge — professions, industries, education systems,
+  life events, places — to translate chart factors into concrete,
+  relevant guidance for the client's situation.
 - Explain in warm, clear language a layperson understands. Name the chart
   factors behind each statement (e.g. "Saturn in the 10th in D-1 and D-10...").
 - Be honest about uncertainty; astrology describes tendencies, not certainties.
@@ -109,6 +126,19 @@ def _birth_tool(name: str, description: str, extra_props: Optional[Dict] = None,
 
 
 TOOLS = [
+    _birth_tool("full_analysis",
+                "THE synthesis bundle — call this FIRST for any reading or "
+                "prediction. One call returns: rasi (D-1), navamsa (D-9), "
+                "bhava chalit, KP sub lords + significator tables, "
+                "Ashtakavarga BAV/SAV, full Nadi analysis, current transits, "
+                "and ALL FOUR dasha systems (vimshottari, yogini, chara, "
+                "kalachakra) with full maha timelines and the exact "
+                "maha/antar running at at_iso (default now). Use it to "
+                "cross-check houses, strength, KP precision, Nadi delivery "
+                "and multi-dasha timing before predicting.",
+                {"at_iso": {"type": "string",
+                            "description": "ISO-8601 moment for 'running now' "
+                                           "dashas/transits (default: now)"}}),
     _birth_tool("birth_chart",
                 "Rasi (D-1) chart: sidereal positions, signs, nakshatras+padas, "
                 "retrogrades, whole-sign houses, lagna, birth panchanga."),
@@ -185,7 +215,9 @@ def _split_birth(args: Dict) -> Tuple[Dict, Dict]:
 def execute_tool(name: str, args: Dict) -> str:
     try:
         birth, rest = _split_birth(args)
-        if name == "birth_chart":
+        if name == "full_analysis":
+            result = jyotish_api.full_analysis(birth, rest.get("at_iso"))
+        elif name == "birth_chart":
             result = jyotish_api.birth_chart(birth)
         elif name == "varga_chart":
             result = jyotish_api.varga_chart(birth, rest["varga"])
