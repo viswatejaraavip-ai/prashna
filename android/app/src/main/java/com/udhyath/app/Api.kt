@@ -84,4 +84,19 @@ object Api {
     suspend fun sendMessage(sessionId: String, content: String): JSONObject =
         request("POST", "/api/sessions/$sessionId/messages",
                 JSONObject().put("content", content))
+
+    // ---- free chart endpoints (no login needed) ----
+
+    suspend fun searchPlaces(q: String): JSONArray =
+        request("GET", "/api/places/search?q=" +
+                java.net.URLEncoder.encode(q, "UTF-8")).getJSONArray("items")
+
+    suspend fun computeChart(birth: JSONObject): JSONObject =
+        request("POST", "/api/astrology/chart", birth)
+
+    suspend fun dashas(birth: JSONObject, system: String): JSONObject {
+        val body = JSONObject(birth.toString())
+            .put("system", system).put("levels", 2)
+        return request("POST", "/api/astrology/dashas", body)
+    }
 }

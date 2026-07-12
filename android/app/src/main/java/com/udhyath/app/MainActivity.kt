@@ -62,19 +62,58 @@ fun UdhyathApp() {
     val context = LocalContext.current
     var token by remember { mutableStateOf(prefs(context).getString("token", null)) }
     Api.token = token
+    var tab by remember { mutableStateOf(0) }  // 0 = Charts (free), 1 = Agent
 
-    if (token == null) {
-        AuthScreen(onAuthed = { newToken ->
-            prefs(context).edit().putString("token", newToken).apply()
-            Api.token = newToken
-            token = newToken
-        })
-    } else {
-        ChatScreen(onLogout = {
-            prefs(context).edit().remove("token").apply()
-            Api.token = null
-            token = null
-        })
+    Scaffold(
+        bottomBar = {
+            NavigationBar(containerColor = DeepPurple) {
+                NavigationBarItem(selected = tab == 0, onClick = { tab = 0 },
+                    icon = { Text("🕉", fontSize = 20.sp) },
+                    label = { Text("Free Charts") },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedTextColor = Saffron, unselectedTextColor = Color(0xFFD1C4E9),
+                        indicatorColor = Maroon))
+                NavigationBarItem(selected = tab == 1, onClick = { tab = 1 },
+                    icon = { Text("🤖", fontSize = 20.sp) },
+                    label = { Text("Astrologer") },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedTextColor = Saffron, unselectedTextColor = Color(0xFFD1C4E9),
+                        indicatorColor = Maroon))
+            }
+        }
+    ) { padding ->
+        Box(Modifier.padding(padding).fillMaxSize()) {
+            if (tab == 0) {
+                Column(Modifier.fillMaxSize()) {
+                    ChartsHeader()
+                    ChartsScreen()
+                }
+            } else if (token == null) {
+                AuthScreen(onAuthed = { newToken ->
+                    prefs(context).edit().putString("token", newToken).apply()
+                    Api.token = newToken
+                    token = newToken
+                })
+            } else {
+                ChatScreen(onLogout = {
+                    prefs(context).edit().remove("token").apply()
+                    Api.token = null
+                    token = null
+                })
+            }
+        }
+    }
+}
+
+@Composable
+fun ChartsHeader() {
+    Row(
+        Modifier.fillMaxWidth().background(DeepPurple).padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text("🪔 Udhyath", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 19.sp)
+        Spacer(Modifier.weight(1f))
+        Text("Vedic charts · FREE", color = Saffron, fontSize = 13.sp)
     }
 }
 

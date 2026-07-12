@@ -29,3 +29,6 @@ android/.kotlin/
 
 # OS
 .DS_Store
+
+# App binary served from the site but not committed
+backend/static/udhyath.apk
