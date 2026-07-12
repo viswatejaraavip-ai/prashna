@@ -59,12 +59,27 @@ BILLING_MARGIN = _f("BILLING_MARGIN", 1.25)
 # The wallet is stored in the smallest unit of CURRENCY (paise for INR).
 CURRENCY = os.environ.get("CURRENCY", "INR")
 USD_TO_WALLET_RATE = _f("USD_TO_WALLET_RATE", 90.0)  # INR per USD; set 1.0 for USD
-# Flat fee charged when a chat session starts, in smallest currency units
-# (paise). This is the guaranteed minimum profit per session, independent of
-# how few tokens the user consumes. Default: 5000 paise = Rs 50.
-SESSION_FEE_UNITS = int(os.environ.get("SESSION_FEE_UNITS", "5000"))
+# Agent pricing is flat per QUESTION — users understand questions, not
+# tokens. The first question in a session includes the full chart synthesis
+# and costs more; follow-ups ride the cached context. Token costs are still
+# recorded per message for margin analytics, but never shown or billed.
+AGENT_FIRST_QUESTION_FEE_UNITS = int(
+    os.environ.get("AGENT_FIRST_QUESTION_FEE_UNITS", "2000"))   # Rs 20
+AGENT_FOLLOWUP_FEE_UNITS = int(
+    os.environ.get("AGENT_FOLLOWUP_FEE_UNITS", "1000"))         # Rs 10
+# Legacy flat session-start fee — now 0 (the first-question premium plays
+# the guaranteed-minimum role instead).
+SESSION_FEE_UNITS = int(os.environ.get("SESSION_FEE_UNITS", "0"))
 # Reject a new message if the wallet has less than this left (default Rs 10).
 MIN_BALANCE_UNITS = int(os.environ.get("MIN_BALANCE_UNITS", "1000"))
+# Guardrails: classifier gate in front of the agent + per-user rate limit.
+GUARD_ENABLED = os.environ.get("GUARD_ENABLED", "1") not in ("0", "false", "")
+GUARD_MODEL = os.environ.get("GUARD_MODEL", "claude-haiku-4-5")
+AGENT_RATE_LIMIT_MESSAGES = int(os.environ.get("AGENT_RATE_LIMIT_MESSAGES", "20"))
+# Unbilled model replies allowed per session (detail-gathering, clarifying).
+# Beyond this a canned "please ask your question" nudge is returned instead
+# of burning more tokens — prevents free-chat farming.
+MAX_FREE_EXCHANGES = int(os.environ.get("MAX_FREE_EXCHANGES", "8"))
 # First-question trial for the mobile app: starter credit (paise) granted once
 # per account AND once per device (hashed device id). The trial session's flat
 # fee is waived; this credit covers the token charges of ~1-2 questions.

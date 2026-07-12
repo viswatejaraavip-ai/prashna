@@ -1,10 +1,11 @@
 """Prepaid wallet billing on DynamoDB (INR wallet, Razorpay top-ups).
 
-Model: users prepay into a wallet held in paise. Each chat session charges
-  1. a flat session fee at start (SESSION_FEE_UNITS) — the guaranteed
-     minimum profit per session, and
-  2. per agent reply: raw Anthropic USD token cost x USD_TO_WALLET_RATE
-     x BILLING_MARGIN.
+Model: users prepay into a wallet held in paise.
+Agent chat is billed FLAT PER QUESTION — predictable for the user:
+  * first question in a session (full chart synthesis): AGENT_FIRST_QUESTION_FEE
+  * every follow-up: AGENT_FOLLOWUP_FEE
+  * a trial account's very first question is free (free_sessions waiver).
+Raw token costs are recorded on each message for margin analytics only.
 Metered /v1 API and MCP calls charge API_CALL_FEE_UNITS each.
 
 All balance changes are atomic conditional updates, so concurrent requests
@@ -39,27 +40,37 @@ def credit(email: str, units: int) -> int:
 
 
 def start_session(email: str) -> Dict:
-    """Open a chat session, charging the flat session fee upfront.
-
-    A trial user's first session consumes their fee waiver instead — the
-    starter credit then covers the per-reply token charges."""
-    if db.consume_free_session(email):
-        return db.create_session(email, 0)
-    charge(email, config.SESSION_FEE_UNITS)
+    """Open a chat session. Free — billing happens per question."""
+    if config.SESSION_FEE_UNITS:
+        charge(email, config.SESSION_FEE_UNITS)
     return db.create_session(email, config.SESSION_FEE_UNITS)
 
 
+def question_fee_units(is_first: bool) -> int:
+    return (config.AGENT_FIRST_QUESTION_FEE_UNITS if is_first
+            else config.AGENT_FOLLOWUP_FEE_UNITS)
+
+
 def record_usage(email: str, session_id: str, model: str,
-                 input_tokens: int, output_tokens: int) -> int:
-    """Charge the wallet for one agent reply; returns units charged."""
-    units = user_charge_units(model, input_tokens, output_tokens)
-    charge(email, units)
+                 input_tokens: int, output_tokens: int,
+                 is_first: bool = False) -> int:
+    """Charge the flat question fee; returns units charged.
+
+    A trial account's first question consumes its waiver and is free.
+    Token counts are stored with the message for margin analytics."""
+    units = question_fee_units(is_first)
+    if is_first and db.consume_free_session(email):
+        units = 0
+    if units:
+        charge(email, units)
     db.record_session_usage(session_id, units, input_tokens, output_tokens)
     return units
 
 
-def can_send_message(user: Dict) -> bool:
-    return user["balance_units"] >= config.MIN_BALANCE_UNITS
+def can_send_message(user: Dict, is_first: bool = False) -> bool:
+    if is_first and int(user.get("free_sessions", 0) or 0) > 0:
+        return True
+    return user["balance_units"] >= question_fee_units(is_first)
 
 
 def pricing_info() -> dict:
@@ -69,6 +80,8 @@ def pricing_info() -> dict:
         "model": config.AGENT_MODEL,
         "currency": config.CURRENCY,
         "session_fee": config.SESSION_FEE_UNITS / 100.0,
+        "agent_first_question_fee": config.AGENT_FIRST_QUESTION_FEE_UNITS / 100.0,
+        "agent_followup_fee": config.AGENT_FOLLOWUP_FEE_UNITS / 100.0,
         "margin_multiplier": config.BILLING_MARGIN,
         "usd_to_wallet_rate": config.USD_TO_WALLET_RATE,
         "user_price_per_mtok": {
