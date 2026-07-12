@@ -258,6 +258,67 @@ def full_analysis(year: int, month: int, day: int, hour: int, minute: int,
 
 
 @mcp.tool()
+def match_making(boy_year: int, boy_month: int, boy_day: int, boy_hour: int,
+                 boy_minute: int, boy_latitude: float, boy_longitude: float,
+                 girl_year: int, girl_month: int, girl_day: int, girl_hour: int,
+                 girl_minute: int, girl_latitude: float, girl_longitude: float,
+                 boy_tz_name: Optional[str] = None,
+                 girl_tz_name: Optional[str] = None) -> dict:
+    """Kundali matching between two people: Ashtakoot 36-guna score with
+    per-koota detail, Dashakoot 10-porutham (South Indian), and a Manglik
+    cross-check. Billed as 2 API calls."""
+    boy = _birth(boy_year, boy_month, boy_day, boy_hour, boy_minute,
+                 boy_latitude, boy_longitude, boy_tz_name, None, "lahiri")
+    girl = _birth(girl_year, girl_month, girl_day, girl_hour, girl_minute,
+                  girl_latitude, girl_longitude, girl_tz_name, None, "lahiri")
+    remote = _remote("POST", "/v1/match-making", {"boy": boy, "girl": girl})
+    return remote if remote is not None else api.match_making(boy, girl)
+
+
+@mcp.tool()
+def dosha_analysis(year: int, month: int, day: int, hour: int, minute: int,
+                   latitude: float, longitude: float, tz_name: Optional[str] = None,
+                   utc_offset_hours: Optional[float] = None,
+                   ayanamsa: str = "lahiri") -> dict:
+    """Dosha analysis: Manglik (from Lagna/Moon/Venus with severity),
+    Kaal Sarpa (with classical type), and life-long Sadhe Sati / Dhaiya
+    windows including what is active right now."""
+    b = _birth(year, month, day, hour, minute, latitude, longitude,
+               tz_name, utc_offset_hours, ayanamsa)
+    remote = _remote("POST", "/v1/doshas", b)
+    return remote if remote is not None else api.dosha_analysis(b)
+
+
+@mcp.tool()
+def yoga_analysis(year: int, month: int, day: int, hour: int, minute: int,
+                  latitude: float, longitude: float, tz_name: Optional[str] = None,
+                  utc_offset_hours: Optional[float] = None,
+                  ayanamsa: str = "lahiri") -> dict:
+    """Classical yogas present in the rasi chart: Panch Mahapurusha,
+    Gajakesari, Budhaditya, Sunapha/Anapha/Durudhara, Vesi/Vasi/Ubhayachari,
+    Adhi, Amala, Vipareeta Raja, Parivartana, Dhana, Raja, Neecha Bhanga."""
+    b = _birth(year, month, day, hour, minute, latitude, longitude,
+               tz_name, utc_offset_hours, ayanamsa)
+    remote = _remote("POST", "/v1/yogas", b)
+    return remote if remote is not None else api.yoga_analysis(b)
+
+
+@mcp.tool()
+def muhurta_of_day(date: Optional[str] = None, latitude: float = 28.6139,
+                   longitude: float = 77.2090,
+                   tz_name: str = "Asia/Kolkata") -> dict:
+    """Day timings for a date and place: sunrise/sunset, moonrise/moonset,
+    Rahu Kalam, Yamaganda, Gulika Kalam, Abhijit muhurta and Brahma muhurta
+    (date YYYY-MM-DD, defaults to today at New Delhi)."""
+    params = {"latitude": latitude, "longitude": longitude, "tz_name": tz_name}
+    if date:
+        params["date"] = date
+    remote = _remote("GET", "/v1/muhurta", params=params)
+    return remote if remote is not None else api.muhurta_of_day(
+        date, latitude, longitude, tz_name)
+
+
+@mcp.tool()
 def year_transits(year: int, ayanamsa: str = "lahiri",
                   include_moon: bool = False) -> dict:
     """Transit timeline for a calendar year: where each planet will be -

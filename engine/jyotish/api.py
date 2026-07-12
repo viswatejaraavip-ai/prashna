@@ -8,7 +8,9 @@ from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
 from . import ashtakavarga as av
-from . import charts, dasha, dasha_systems, ephemeris, kp, nadi, panchanga, vargas
+from . import charts, dasha, dasha_systems, doshas, ephemeris, kp, matching
+from . import muhurta as muhurta_mod
+from . import nadi, panchanga, vargas, yogas
 from . import year_transits as yt
 from .constants import SIGNS, VARGA_LIST, VARGA_SIGNIFICATIONS
 
@@ -359,6 +361,64 @@ def full_analysis(birth: Dict, at_iso: Optional[str] = None) -> Dict:
         "dashas": dashas,
         "transits_now": transits(at.isoformat())["planets"],
     }
+
+
+def match_making(boy: Dict, girl: Dict) -> Dict:
+    """Kundali matching: Ashtakoot 36-guna + Dashakoot porutham + Manglik
+    cross-check, from both partners' birth details."""
+    b, g = BirthData.from_dict(boy), BirthData.from_dict(girl)
+    bpos = {k: v["longitude"] for k, v in
+            ephemeris.planet_positions(b.jd, b.ayanamsa).items()}
+    gpos = {k: v["longitude"] for k, v in
+            ephemeris.planet_positions(g.jd, g.ayanamsa).items()}
+    basc = ephemeris.ascendant(b.jd, b.latitude, b.longitude, b.ayanamsa)
+    gasc = ephemeris.ascendant(g.jd, g.latitude, g.longitude, g.ayanamsa)
+    result = matching.match(bpos["Moon"], gpos["Moon"], bpos, gpos, basc, gasc)
+    result["boy"] = {"moon_nakshatra": panchanga.nakshatra_of(bpos["Moon"]),
+                     "meta": b.meta()}
+    result["girl"] = {"moon_nakshatra": panchanga.nakshatra_of(gpos["Moon"]),
+                      "meta": g.meta()}
+    return result
+
+
+def dosha_analysis(birth: Dict) -> Dict:
+    """Manglik, Kaal Sarpa and life-long Sadhe Sati windows."""
+    b = BirthData.from_dict(birth)
+    positions = {k: v["longitude"] for k, v in
+                 ephemeris.planet_positions(b.jd, b.ayanamsa).items()}
+    asc = ephemeris.ascendant(b.jd, b.latitude, b.longitude, b.ayanamsa)
+    result = doshas.analyze(positions, asc, b.utc, b.ayanamsa)
+    result["meta"] = b.meta()
+    return result
+
+
+def yoga_analysis(birth: Dict) -> Dict:
+    """Classical yogas present in the rasi chart (Panch Mahapurusha,
+    Gajakesari, lunar/solar yogas, Vipareeta Raja, Parivartana, ...)."""
+    b = BirthData.from_dict(birth)
+    positions = {k: v["longitude"] for k, v in
+                 ephemeris.planet_positions(b.jd, b.ayanamsa).items()}
+    asc = ephemeris.ascendant(b.jd, b.latitude, b.longitude, b.ayanamsa)
+    result = yogas.detect(positions, asc)
+    result["meta"] = b.meta()
+    return result
+
+
+def muhurta_of_day(date_iso: Optional[str] = None, latitude: float = 28.6139,
+                   longitude: float = 77.2090,
+                   tz_name: str = "Asia/Kolkata") -> Dict:
+    """Sunrise/sunset, Rahu Kalam, Yamaganda, Gulika, Abhijit and Brahma
+    muhurta for a date and place (defaults: today, New Delhi)."""
+    from datetime import date as _date
+    if date_iso:
+        day = _date.fromisoformat(date_iso)
+    else:
+        try:
+            from zoneinfo import ZoneInfo
+            day = datetime.now(ZoneInfo(tz_name)).date()
+        except Exception:
+            day = datetime.now(timezone.utc).date()
+    return muhurta_mod.day_timings(day, latitude, longitude, tz_name)
 
 
 def panchanga_for(birth: Dict) -> Dict:

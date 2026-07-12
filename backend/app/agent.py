@@ -175,6 +175,44 @@ TOOLS = [
                 "Ashtakavarga: Bhinnashtakavarga bindus per sign for the 7 planets "
                 "and Sarvashtakavarga totals. Use for transit strength judgments "
                 "(signs with SAV >= 28 are strong, < 25 weak)."),
+    _birth_tool("dosha_analysis",
+                "Doshas: Manglik (from Lagna/Moon/Venus with severity and "
+                "cancellations), Kaal Sarpa (with type), and life-long "
+                "Sadhe Sati / Dhaiya windows with what is active now."),
+    _birth_tool("yoga_analysis",
+                "Classical yogas present in the chart: Panch Mahapurusha, "
+                "Gajakesari, Budhaditya, lunar/solar yogas, Vipareeta Raja, "
+                "Parivartana, Dhana, Raja, Neecha Bhanga."),
+    {
+        "name": "match_making",
+        "description": "Kundali matching between two people: Ashtakoot "
+                       "36-guna, Dashakoot 10-porutham and Manglik "
+                       "cross-check. Provide both birth details.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "boy": {"type": "object", "properties": _birth_props(),
+                        "required": _BIRTH_REQUIRED},
+                "girl": {"type": "object", "properties": _birth_props(),
+                         "required": _BIRTH_REQUIRED},
+            },
+            "required": ["boy", "girl"],
+        },
+    },
+    {
+        "name": "muhurta_of_day",
+        "description": "Day timings for a date+place: sunrise/sunset, "
+                       "Rahu Kalam, Yamaganda, Gulika, Abhijit and Brahma "
+                       "muhurta. Use for 'good time today/this date'.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "date": {"type": "string", "description": "YYYY-MM-DD (default today)"},
+                "latitude": {"type": "number"}, "longitude": {"type": "number"},
+                "tz_name": {"type": "string"},
+            },
+        },
+    },
     {
         "name": "transits",
         "description": "Current sidereal planetary positions (gochar), or at at_iso.",
@@ -236,6 +274,17 @@ def execute_tool(name: str, args: Dict) -> str:
             result = jyotish_api.kp_chart(birth)
         elif name == "nadi_analysis":
             result = jyotish_api.nadi_analysis(birth)
+        elif name == "dosha_analysis":
+            result = jyotish_api.dosha_analysis(birth)
+        elif name == "yoga_analysis":
+            result = jyotish_api.yoga_analysis(birth)
+        elif name == "match_making":
+            result = jyotish_api.match_making(args["boy"], args["girl"])
+        elif name == "muhurta_of_day":
+            result = jyotish_api.muhurta_of_day(
+                args.get("date"), args.get("latitude", 28.6139),
+                args.get("longitude", 77.2090),
+                args.get("tz_name", "Asia/Kolkata"))
         elif name == "ashtakavarga":
             result = jyotish_api.ashtakavarga_chart(birth)
         elif name == "transits":
