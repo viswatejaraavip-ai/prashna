@@ -81,6 +81,10 @@ AICREDITS_BASE_URL = os.environ.get("AICREDITS_BASE_URL",
 AICREDITS_MODEL = os.environ.get("AICREDITS_MODEL", "anthropic/claude-opus-4.8")
 AICREDITS_GUARD_MODEL = os.environ.get("AICREDITS_GUARD_MODEL",
                                        "anthropic/claude-haiku-4.5")
+# Accounts whose agent traffic routes through the sandbox gateway even in
+# production (comma-separated emails) — used for dev/testing on live infra.
+DEV_SANDBOX_EMAILS = {e.strip().lower() for e in os.environ.get(
+    "DEV_SANDBOX_EMAILS", "dev@example.com").split(",") if e.strip()}
 
 # Guardrails: classifier gate in front of the agent + per-user rate limit.
 GUARD_ENABLED = os.environ.get("GUARD_ENABLED", "1") not in ("0", "false", "")

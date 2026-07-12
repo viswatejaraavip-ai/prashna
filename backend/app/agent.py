@@ -437,14 +437,15 @@ def _run_agent_compat(history: List[Dict]) -> Tuple[str, int, int]:
             total_in, total_out)
 
 
-def run_agent(history: List[Dict]) -> Tuple[str, int, int]:
+def run_agent(history: List[Dict],
+              provider: Optional[str] = None) -> Tuple[str, int, int]:
     """Run the tool-use loop over the conversation.
 
     history: [{"role": "user"|"assistant", "content": str}, ...] ending with
     the newest user message. Returns (reply_text, input_tokens, output_tokens)
     with token usage summed across every API call in the loop.
     """
-    if config.INFERENCE_PROVIDER == "aicredits":
+    if (provider or config.INFERENCE_PROVIDER) == "aicredits":
         return _run_agent_compat(history)
 
     messages: List[Dict] = list(history)

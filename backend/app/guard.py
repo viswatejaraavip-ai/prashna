@@ -159,11 +159,11 @@ _GUARD_SYSTEM = (
     "If unsure, reply ASTRO.")
 
 
-def classify(client, text: str) -> str:
+def classify(client, text: str, sandbox: bool = False) -> str:
     """Route a message with a small fast model. Fails open to ASTRO."""
     if not config.GUARD_ENABLED:
         return "ASTRO"
-    if config.INFERENCE_PROVIDER == "aicredits":
+    if sandbox or config.INFERENCE_PROVIDER == "aicredits":
         try:
             from . import agent as agent_mod
             word = agent_mod.compat_simple(config.AICREDITS_GUARD_MODEL,
