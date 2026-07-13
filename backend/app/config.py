@@ -86,6 +86,15 @@ AICREDITS_GUARD_MODEL = os.environ.get("AICREDITS_GUARD_MODEL",
 DEV_SANDBOX_EMAILS = {e.strip().lower() for e in os.environ.get(
     "DEV_SANDBOX_EMAILS", "dev@example.com").split(",") if e.strip()}
 
+# Mega life report (~1,00,000 words, 18 chapters, Opus 4.8).
+REPORT_FEE_UNITS = int(os.environ.get("REPORT_FEE_UNITS", "300000"))  # Rs 3000
+REPORT_MODEL = os.environ.get("REPORT_MODEL", "claude-opus-4-8")
+# ~5600 words x 18 chapters ≈ 1,00,000 words. Lower this env var to smoke-
+# test the pipeline cheaply.
+REPORT_SECTION_WORDS = int(os.environ.get("REPORT_SECTION_WORDS", "5600"))
+# Free teasers allowed per account per day.
+REPORT_TEASERS_PER_DAY = int(os.environ.get("REPORT_TEASERS_PER_DAY", "3"))
+
 # Guardrails: classifier gate in front of the agent + per-user rate limit.
 GUARD_ENABLED = os.environ.get("GUARD_ENABLED", "1") not in ("0", "false", "")
 GUARD_MODEL = os.environ.get("GUARD_MODEL", "claude-haiku-4-5")

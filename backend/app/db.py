@@ -17,6 +17,7 @@ endpoint; the table is auto-created there.
 """
 
 import time
+import json as _json
 import uuid
 from datetime import datetime, timezone
 from decimal import Decimal
@@ -216,6 +217,61 @@ def consume_free_session(email: str) -> bool:
         if exc.response["Error"]["Code"] == "ConditionalCheckFailedException":
             return False
         raise
+
+
+# ---------------- Mega reports ----------------
+
+def create_report(email: str, report_id: str, birth: Dict, lang: str,
+                  fee_units: int, sections_total: int) -> None:
+    table().put_item(Item={
+        "PK": "USER#" + email, "SK": "REPORT#" + report_id,
+        "email": email, "report_id": report_id,
+        "birth": _json.dumps(birth), "lang": lang,
+        "fee_units": fee_units, "status": "generating",
+        "sections_done": 0, "sections_total": sections_total,
+        "created_at": _now(),
+    })
+
+
+def update_report(email: str, report_id: str, **fields) -> None:
+    expr = ", ".join("#f%d = :v%d" % (i, i) for i in range(len(fields)))
+    table().update_item(
+        Key={"PK": "USER#" + email, "SK": "REPORT#" + report_id},
+        UpdateExpression="SET " + expr,
+        ExpressionAttributeNames={"#f%d" % i: k for i, k in enumerate(fields)},
+        ExpressionAttributeValues={":v%d" % i: v for i, v in
+                                   enumerate(fields.values())},
+    )
+
+
+def list_reports(email: str) -> List[Dict]:
+    resp = table().query(
+        KeyConditionExpression="PK = :p AND begins_with(SK, :s)",
+        ExpressionAttributeValues={":p": "USER#" + email, ":s": "REPORT#"})
+    return [_plain(i) for i in resp.get("Items", [])]
+
+
+def get_report(email: str, report_id: str) -> Optional[Dict]:
+    resp = table().get_item(Key={"PK": "USER#" + email,
+                                 "SK": "REPORT#" + report_id})
+    return _plain(resp.get("Item"))
+
+
+def add_report_section(report_id: str, idx: int, title: str,
+                       content: str) -> None:
+    table().put_item(Item={
+        "PK": "REPORTSEC#" + report_id, "SK": "SEC#%02d" % idx,
+        "idx": idx, "title": title, "content": content,
+        "created_at": _now(),
+    })
+
+
+def list_report_sections(report_id: str) -> List[Dict]:
+    resp = table().query(
+        KeyConditionExpression="PK = :p",
+        ExpressionAttributeValues={":p": "REPORTSEC#" + report_id})
+    return sorted([_plain(i) for i in resp.get("Items", [])],
+                  key=lambda x: int(x["idx"]))
 
 
 # ---------------- API keys ----------------

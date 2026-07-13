@@ -79,6 +79,12 @@ fun UdhyathApp() {
                     colors = NavigationBarItemDefaults.colors(
                         selectedTextColor = Saffron, unselectedTextColor = Color(0xFFD1C4E9),
                         indicatorColor = Maroon))
+                NavigationBarItem(selected = tab == 2, onClick = { tab = 2 },
+                    icon = { Text("📜", fontSize = 20.sp) },
+                    label = { Text("Report") },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedTextColor = Saffron, unselectedTextColor = Color(0xFFD1C4E9),
+                        indicatorColor = Maroon))
             }
         }
     ) { padding ->
@@ -88,6 +94,8 @@ fun UdhyathApp() {
                     ChartsHeader()
                     ChartsScreen()
                 }
+            } else if (tab == 2) {
+                ReportScreen(loggedIn = token != null, onNeedLogin = { tab = 1 })
             } else if (token == null) {
                 AuthScreen(onAuthed = { newToken ->
                     prefs(context).edit().putString("token", newToken).apply()

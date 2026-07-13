@@ -95,6 +95,7 @@ fun ChartsScreen() {
                 birthBody = body
                 tab = 0
                 prefsPut(context, "bc_date", dateText); prefsPut(context, "bc_time", timeText)
+                prefsPut(context, "birth_json", body.toString())
                 prefsPut(context, "bc_place", placeQuery)
             } catch (e: Exception) { error = e.message ?: "Network error" }
             finally { busy = false }

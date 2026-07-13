@@ -94,6 +94,20 @@ object Api {
     suspend fun computeChart(birth: JSONObject): JSONObject =
         request("POST", "/api/astrology/chart", birth)
 
+    // ---- mega life reports ----
+
+    suspend fun reportTeaser(birth: JSONObject): JSONObject =
+        request("POST", "/api/reports/teaser", birth)
+
+    suspend fun buyReport(birth: JSONObject): JSONObject =
+        request("POST", "/api/reports", birth)
+
+    suspend fun listReports(): JSONArray =
+        request("GET", "/api/reports").getJSONArray("items")
+
+    suspend fun getReport(id: String): JSONObject =
+        request("GET", "/api/reports/" + id)
+
     suspend fun dashas(birth: JSONObject, system: String): JSONObject {
         val body = JSONObject(birth.toString())
             .put("system", system).put("levels", 2)
