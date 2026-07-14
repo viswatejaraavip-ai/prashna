@@ -87,7 +87,10 @@ DEV_SANDBOX_EMAILS = {e.strip().lower() for e in os.environ.get(
     "DEV_SANDBOX_EMAILS", "dev@example.com").split(",") if e.strip()}
 
 # Mega life report (~1,00,000 words, 18 chapters, Opus 4.8).
-REPORT_FEE_UNITS = int(os.environ.get("REPORT_FEE_UNITS", "300000"))  # Rs 3000
+# Flat Rs 1050 for all languages (~5% margin on the costlier Telugu/Hindi
+# generation; English reports carry a wider cushion at the same price).
+REPORT_FEE_UNITS = int(os.environ.get("REPORT_FEE_UNITS", "105000"))       # Rs 1050
+REPORT_FEE_UNITS_INDIC = int(os.environ.get("REPORT_FEE_UNITS_INDIC", "105000"))  # Rs 1050
 REPORT_MODEL = os.environ.get("REPORT_MODEL", "claude-opus-4-8")
 # ~5600 words x 18 chapters ≈ 1,00,000 words. Lower this env var to smoke-
 # test the pipeline cheaply.

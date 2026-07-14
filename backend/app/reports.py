@@ -145,6 +145,11 @@ def _context_blocks(bundle: str, lang: str, birth_year: int, words: int) -> List
     ]
 
 
+def report_fee_units(lang: str) -> int:
+    return (config.REPORT_FEE_UNITS_INDIC if lang in ("te", "hi")
+            else config.REPORT_FEE_UNITS)
+
+
 def generate_teaser(birth: Dict, lang: str = "en") -> Dict:
     """~100-word free preview that shows real insight and sells the report."""
     bundle = json.dumps(jyotish_api.full_analysis(birth), default=str)
@@ -163,7 +168,7 @@ def generate_teaser(birth: Dict, lang: str = "en") -> Dict:
         "full_report": {
             "words": "≈1,00,000",
             "chapters": [t for _, t, _ in SECTIONS],
-            "price": config.REPORT_FEE_UNITS / 100.0,
+            "price": report_fee_units(lang) / 100.0,
             "currency": config.CURRENCY,
             "delivery": "Generated chapter by chapter; usually ready in "
                         "30-45 minutes.",
@@ -202,18 +207,20 @@ def _generate(report_id: str, email: str, birth: Dict, lang: str) -> None:
     except Exception as exc:
         log.error("report %s FAILED: %s — refunding", report_id, exc)
         try:
-            billing.credit(email, config.REPORT_FEE_UNITS)
+            meta = db.get_report(email, report_id) or {}
+            billing.credit(email, int(meta.get("fee_units",
+                                               config.REPORT_FEE_UNITS)))
         except Exception:
             log.error("refund failed for %s / %s", email, report_id)
         db.update_report(email, report_id, status="failed", error=str(exc))
 
 
 def start_report(email: str, birth: Dict, lang: str) -> Dict:
-    """Charge the fee and launch background generation."""
-    billing.charge(email, config.REPORT_FEE_UNITS)  # raises on low balance
+    """Charge the language-specific fee and launch background generation."""
+    fee = report_fee_units(lang)
+    billing.charge(email, fee)  # raises on low balance
     report_id = uuid.uuid4().hex[:12]
-    db.create_report(email, report_id, birth, lang,
-                     config.REPORT_FEE_UNITS, len(SECTIONS))
+    db.create_report(email, report_id, birth, lang, fee, len(SECTIONS))
     t = threading.Thread(target=_generate,
                          args=(report_id, email, birth, lang), daemon=True)
     t.start()

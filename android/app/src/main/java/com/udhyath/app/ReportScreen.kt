@@ -174,7 +174,7 @@ fun ReportScreen(loggedIn: Boolean, onNeedLogin: () -> Unit) {
         onDismissRequest = { confirm = false },
         title = { Text("పూర్తి జీవిత నివేదిక") },
         text = { Text("≈1,00,000 పదాలు, 18 అధ్యాయాలు — గతం, భవిష్యత్తు, ఉద్యోగం, " +
-                      "వివాహం, సంతానం, ధనం, కుటుంబం, ఆధ్యాత్మికం. ₹3,000 మీ వాలెట్ " +
+                      "వివాహం, సంతానం, ధనం, కుటుంబం, ఆధ్యాత్మికం. ₹1,050 మీ వాలెట్ " +
                       "నుంచి తీసుకుంటాం. సుమారు 30–45 నిమిషాల్లో సిద్ధమవుతుంది.") },
         confirmButton = {
             Button(onClick = {
@@ -188,7 +188,7 @@ fun ReportScreen(loggedIn: Boolean, onNeedLogin: () -> Unit) {
                     finally { busy = false }
                 }
             }, colors = ButtonDefaults.buttonColors(containerColor = Maroon)) {
-                Text("₹3,000 చెల్లించి కొనండి")
+                Text("₹1,050 చెల్లించి కొనండి")
             }
         },
         dismissButton = { TextButton(onClick = { confirm = false }) { Text("తర్వాత") } },
