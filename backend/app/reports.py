@@ -205,7 +205,12 @@ def _generate(report_id: str, email: str, birth: Dict, lang: str) -> None:
         bundle = json.dumps(jyotish_api.full_analysis(birth), default=str)
         words = config.REPORT_SECTION_WORDS
         birth_year = int(birth["year"])
+        already = {s["idx"] for s in db.list_report_sections(report_id)}
         for idx, (key, title, coverage) in enumerate(SECTIONS, 1):
+            if idx in already:  # resume: keep chapters from a prior attempt
+                db.update_report(email, report_id,
+                                 sections_done=idx, status="generating")
+                continue
             prompt = ("Write chapter %d of %d: \"%s\".\nCoverage: %s"
                       % (idx, len(SECTIONS), title, coverage))
             content = None
@@ -248,3 +253,24 @@ def start_report(email: str, birth: Dict, lang: str) -> Dict:
     t.start()
     return {"report_id": report_id, "status": "generating",
             "sections_total": len(SECTIONS)}
+
+
+def resume_report(email: str, report_id: str) -> Dict:
+    """Re-charge and finish a failed report, keeping completed chapters."""
+    meta = db.get_report(email, report_id)
+    if meta is None:
+        raise ValueError("Report not found")
+    if meta["status"] != "failed":
+        raise ValueError("Only failed reports can be resumed")
+    lang = meta.get("lang", "en")
+    fee = report_fee_units(lang)
+    billing.charge(email, fee)  # the failed attempt was refunded in full
+    db.update_report(email, report_id, status="generating", error=None,
+                     fee_units=fee)
+    birth = json.loads(meta["birth"])
+    t = threading.Thread(target=_generate,
+                         args=(report_id, email, birth, lang), daemon=True)
+    t.start()
+    done = len(db.list_report_sections(report_id))
+    return {"report_id": report_id, "status": "generating",
+            "sections_done": done, "sections_total": len(SECTIONS)}
