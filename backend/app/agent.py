@@ -392,7 +392,7 @@ def _compat_request(payload: Dict) -> Dict:
         config.AICREDITS_BASE_URL.rstrip("/") + "/chat/completions",
         headers={"Authorization": "Bearer " + config.AICREDITS_API_KEY,
                  "Content-Type": "application/json"},
-        json=payload, timeout=180)
+        json=payload, timeout=420)
     if resp.status_code >= 400:
         raise RuntimeError("AICredits %s: %s" % (resp.status_code, resp.text[:300]))
     return resp.json()

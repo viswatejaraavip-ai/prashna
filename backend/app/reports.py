@@ -176,6 +176,30 @@ def generate_teaser(birth: Dict, lang: str = "en") -> Dict:
     }
 
 
+def _generate_section(bundle: str, lang: str, birth_year: int,
+                      words: int, prompt: str) -> str:
+    """One chapter. Long chapters go in two half-passes so no single call
+    outlives gateway/HTTP timeouts (~70 tok/s upstream)."""
+    def _mt(w):
+        return min(int(w * 2.2) + 1200, 24000)
+    if words <= 3000:
+        return _complete(_context_blocks(bundle, lang, birth_year, words),
+                         prompt, _mt(words), thinking=True)
+    half = words // 2
+    blocks = _context_blocks(bundle, lang, birth_year, half)
+    p1 = _complete(blocks, prompt +
+                   "\nWrite the FIRST HALF of this chapter (about %d words). "
+                   "Do not conclude — stop at a natural mid-point." % half,
+                   _mt(half), thinking=True)
+    p2 = _complete(blocks, prompt +
+                   "\nThe first half of this chapter is already written; it "
+                   "ends with:\n\u2026%s\n\nWrite the SECOND HALF (about "
+                   "%d words): continue seamlessly, do not repeat covered "
+                   "points, and bring the chapter to its conclusion."
+                   % (p1[-600:], half), _mt(half), thinking=True)
+    return p1.rstrip() + "\n\n" + p2.lstrip()
+
+
 def _generate(report_id: str, email: str, birth: Dict, lang: str) -> None:
     try:
         bundle = json.dumps(jyotish_api.full_analysis(birth), default=str)
@@ -187,10 +211,8 @@ def _generate(report_id: str, email: str, birth: Dict, lang: str) -> None:
             content = None
             for attempt in (1, 2):
                 try:
-                    content = _complete(
-                        _context_blocks(bundle, lang, birth_year, words),
-                        prompt, min(int(words * 2.2) + 1500, 24000),
-                        thinking=True)
+                    content = _generate_section(bundle, lang, birth_year,
+                                                words, prompt)
                     if content:
                         break
                 except Exception as exc:
