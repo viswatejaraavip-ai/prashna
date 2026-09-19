@@ -1,0 +1,11 @@
+# Firebase config is per-project and never committed (see docs/launch/ANDROID.md).
+app/google-services.json
+# Release signing
+keystore.properties
+*.jks
+*.keystore
+.gradle/
+build/
+app/build/
+local.properties
+.kotlin/

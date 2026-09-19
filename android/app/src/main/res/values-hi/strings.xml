@@ -1,0 +1,481 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Hindi (हिन्दी) strings. Must contain every translatable key from values/strings.xml. -->
+<resources>
+    <string name="tagline">आपकी अपनी भाषा में वैदिक ज्योतिष</string>
+
+    <!-- Common -->
+    <string name="loading">लोड हो रहा है…</string>
+    <string name="retry">फिर से कोशिश करें</string>
+    <string name="cancel">रद्द करें</string>
+    <string name="close">बंद करें</string>
+    <string name="save">सेव करें</string>
+    <string name="saved">सेव हो गया</string>
+    <string name="delete">मिटाएँ</string>
+    <string name="add">जोड़ें</string>
+    <string name="remove">हटाएँ</string>
+    <string name="submit">भेजें</string>
+    <string name="continue_">आगे बढ़ें</string>
+    <string name="or">या</string>
+    <string name="allow">अनुमति दें</string>
+    <string name="not_now">अभी नहीं</string>
+    <string name="see_all">सब देखें</string>
+    <string name="from">से</string>
+    <string name="to">तक</string>
+    <string name="score_value">अंक: %1$d</string>
+    <string name="version">संस्करण %1$s</string>
+
+    <!-- Errors & states -->
+    <string name="err_offline">इंटरनेट कनेक्शन नहीं है। कृपया अपना नेटवर्क जाँचें और फिर से कोशिश करें।</string>
+    <string name="err_server">हमारी ओर से कुछ गड़बड़ हो गई। कृपया थोड़ी देर बाद फिर से कोशिश करें।</string>
+    <string name="err_balance">इसके लिए आपके वॉलेट में पर्याप्त राशि नहीं है।</string>
+    <string name="err_rate_limited">बहुत ज़्यादा अनुरोध। कृपया एक मिनट रुककर फिर से कोशिश करें।</string>
+    <string name="err_not_found">यह नहीं मिला। शायद इसे हटा दिया गया है।</string>
+    <string name="err_forbidden">यह सुविधा आपके प्लान में उपलब्ध नहीं है।</string>
+    <string name="err_invalid">कृपया जानकारी जाँचें और फिर से कोशिश करें।</string>
+    <string name="err_session">आपका सत्र समाप्त हो गया है। कृपया फिर से साइन इन करें।</string>
+    <string name="offline_banner">आप ऑफ़लाइन हैं</string>
+    <string name="maintenance_title">हम जल्द ही वापस आएँगे</string>
+    <string name="maintenance_default">उद्यत को अपडेट किया जा रहा है। कृपया कुछ मिनट बाद फिर से कोशिश करें।</string>
+
+    <!-- Accessibility -->
+    <string name="cd_back">वापस जाएँ</string>
+    <string name="cd_wallet_balance">वॉलेट में राशि %1$s। वॉलेट खोलें</string>
+    <string name="cd_switch_profile">%1$s की जानकारी दिख रही है। व्यक्ति बदलने के लिए टैप करें</string>
+    <string name="cd_edit_profile">%1$s की जानकारी बदलें</string>
+    <string name="cd_share_chart">कुंडली शेयर करें</string>
+    <string name="cd_chart">%1$s कुंडली। लग्न %2$s में। %3$s</string>
+    <string name="cd_voice_mode">ज्योतिषी से बात करें</string>
+    <string name="cd_send">प्रश्न भेजें</string>
+    <string name="cd_read_aloud">पढ़कर सुनाएँ</string>
+    <string name="cd_exit_voice">आवाज़ मोड से बाहर निकलें</string>
+    <string name="cd_stop_speaking">बोलना बंद करें</string>
+    <string name="cd_stop_listening">बोलना पूरा करें</string>
+    <string name="cd_start_listening">बोलना शुरू करें</string>
+
+    <!-- Language -->
+    <string name="language_title">भाषा</string>
+    <string name="language_hint">ऐप, ज्योतिषी के उत्तर और आवाज़ — सब इसी भाषा में होंगे।</string>
+
+    <!-- Sign in -->
+    <string name="auth_phone_title">अपने मोबाइल नंबर से साइन इन करें</string>
+    <string name="auth_country">कोड</string>
+    <string name="auth_phone_label">मोबाइल नंबर</string>
+    <string name="auth_send_code">OTP भेजें</string>
+    <string name="auth_code_sent">हमने %1$s पर 6 अंकों का कोड भेजा है</string>
+    <string name="auth_code_label">6 अंकों का OTP</string>
+    <string name="auth_verify">पुष्टि करें और आगे बढ़ें</string>
+    <string name="auth_change_number">नंबर बदलें</string>
+    <string name="auth_resend">OTP दोबारा भेजें</string>
+    <string name="auth_resend_in">%1$d सेकंड में दोबारा भेजें</string>
+    <string name="auth_google">Google से आगे बढ़ें</string>
+    <string name="auth_bad_phone">कृपया सही मोबाइल नंबर डालें।</string>
+    <string name="auth_bad_code">यह कोड सही नहीं है। कृपया जाँचकर फिर से कोशिश करें।</string>
+    <string name="auth_otp_failed">OTP नहीं भेजा जा सका। कृपया नंबर जाँचें और फिर से कोशिश करें।</string>
+    <string name="auth_google_failed">Google से साइन इन नहीं हो सका। कृपया फिर से कोशिश करें या अपना मोबाइल नंबर इस्तेमाल करें।</string>
+    <string name="auth_google_unconfigured">इस संस्करण में Google साइन इन उपलब्ध नहीं है। कृपया अपना मोबाइल नंबर इस्तेमाल करें।</string>
+    <string name="auth_terms_note">आगे बढ़कर आप हमारी उपयोग की शर्तों और गोपनीयता नीति से सहमत होते हैं।</string>
+
+    <!-- Role -->
+    <string name="role_title">आप उद्यत का उपयोग कैसे करेंगे?</string>
+    <string name="role_personal">अपने और अपने परिवार के लिए</string>
+    <string name="role_personal_desc">आपके परिवार के लिए रोज़ का मार्गदर्शन, कुंडली, गुण मिलान और प्रश्नों के उत्तर।</string>
+    <string name="role_astrologer">मैं ज्योतिषी हूँ</string>
+    <string name="role_astrologer_desc">ग्राहकों का रिकॉर्ड, पेशेवर कुंडलियाँ और आपके अपने नाम वाली रिपोर्ट।</string>
+
+    <!-- Disclaimer & legal -->
+    <string name="disclaimer_title">अस्वीकरण</string>
+    <string name="disclaimer_fallback">उद्यत पारंपरिक वैदिक पद्धतियों पर आधारित ज्योतिषीय मार्गदर्शन देता है। यह चिकित्सा, कानूनी, वित्तीय या मनोवैज्ञानिक सलाह का विकल्प नहीं है। महत्वपूर्ण निर्णयों के लिए कृपया अपने विवेक का उपयोग करें।</string>
+    <string name="disclaimer_agree">मैंने इसे पढ़ और समझ लिया है</string>
+    <string name="legal_terms">उपयोग की शर्तें</string>
+    <string name="legal_privacy">गोपनीयता नीति</string>
+    <string name="legal_refund">रिफ़ंड नीति</string>
+
+    <!-- Birth details / profiles -->
+    <string name="birth_title_onboarding">आपका जन्म विवरण</string>
+    <string name="birth_subtitle">इसमें एक मिनट से भी कम समय लगेगा। आपकी जानकारी गोपनीय रहती है।</string>
+    <string name="birth_cta">मेरा पहला फलादेश देखें</string>
+    <string name="profile_add_title">परिवार का सदस्य जोड़ें</string>
+    <string name="profile_edit_title">जानकारी बदलें</string>
+    <string name="profile_delete_title">इस व्यक्ति को हटाएँ?</string>
+    <string name="profile_delete_body">%1$s और उनके सभी फलादेश आपके खाते से हटा दिए जाएँगे।</string>
+    <string name="profile_none">अभी तक कोई नहीं जोड़ा गया</string>
+    <string name="profile_active">चुना गया</string>
+    <string name="field_name">नाम</string>
+    <string name="field_relation">संबंध</string>
+    <string name="field_gender">लिंग (वैकल्पिक)</string>
+    <string name="field_birth_date">जन्म तिथि</string>
+    <string name="field_birth_time">जन्म समय</string>
+    <string name="field_time_unknown">मुझे सही समय नहीं पता</string>
+    <string name="field_birth_place">जन्म स्थान</string>
+    <string name="field_notes">टिप्पणी</string>
+    <string name="time_unknown_note">कोई बात नहीं। हम दोपहर का समय मान लेंगे, और बाद में जन्म-समय सहायक बेहतर समय खोज सकता है।</string>
+    <string name="time_unknown_short">समय पता नहीं</string>
+    <string name="time_unknown_chart_note">जन्म समय पता नहीं है, इसलिए लग्न और भाव अनुमानित हैं।</string>
+    <string name="place_no_results">कोई मिलता-जुलता स्थान नहीं मिला। पास का शहर या ज़िला लिखकर देखें।</string>
+    <string name="rel_self">मैं</string>
+    <string name="rel_spouse">पति/पत्नी</string>
+    <string name="rel_child">संतान</string>
+    <string name="rel_parent">माता/पिता</string>
+    <string name="rel_other">अन्य</string>
+    <string name="rel_client">ग्राहक</string>
+    <string name="gender_male">पुरुष</string>
+    <string name="gender_female">महिला</string>
+    <string name="gender_other">अन्य</string>
+    <string name="pick_person">व्यक्ति चुनें</string>
+
+    <!-- Snapshot (first reading) -->
+    <string name="snapshot_title">आपका पहला फलादेश</string>
+    <string name="snapshot_subtitle">एक नज़र में देखिए आपकी जन्म कुंडली क्या कहती है।</string>
+    <string name="snapshot_cta_free">ज्योतिषी से आपका पहला प्रश्न मुफ़्त है। करियर, विवाह, स्वास्थ्य या आने वाले साल के बारे में कुछ भी पूछें।</string>
+    <string name="snapshot_cta_ask">और गहराई से जानना चाहते हैं? ज्योतिषी से कुछ भी पूछें।</string>
+    <string name="snapshot_continue">होम पर जाएँ</string>
+    <string name="ask_astrologer">ज्योतिषी से पूछें</string>
+
+    <!-- Navigation -->
+    <string name="tab_home">होम</string>
+    <string name="tab_ask">पूछें</string>
+    <string name="tab_charts">कुंडली</string>
+    <string name="tab_reports">रिपोर्ट</string>
+    <string name="tab_more">और</string>
+    <string name="tab_clients">ग्राहक</string>
+
+    <!-- Home -->
+    <string name="home_today">आज</string>
+    <string name="home_alerts">आपके लिए आगे क्या है</string>
+    <string name="qa_ask">पूछें</string>
+    <string name="qa_talk">बात करें</string>
+    <string name="qa_charts">कुंडली</string>
+    <string name="qa_matching">गुण मिलान</string>
+    <string name="qa_muhurta">मुहूर्त</string>
+    <string name="qa_report">जीवन रिपोर्ट</string>
+    <string name="qa_rectify">जन्म समय</string>
+    <string name="qa_family">परिवार</string>
+    <string name="share_whatsapp">WhatsApp पर शेयर करें</string>
+    <string name="share_daily_text">उद्यत से आज का पंचांग</string>
+    <string name="share_chart_text">उद्यत से मेरी जन्म कुंडली</string>
+    <string name="share_matching_text">उद्यत से कुंडली मिलान रिपोर्ट</string>
+    <string name="family_title">परिवार</string>
+    <string name="family_add">व्यक्ति जोड़ें</string>
+    <string name="family_empty">अपने परिवार के सदस्यों को जोड़ें और उनकी कुंडली व रोज़ का मार्गदर्शन देखें।</string>
+    <string name="family_manage">परिवार प्रबंधित करें</string>
+
+    <!-- Alerts -->
+    <string name="alerts_title">गोचर सूचनाएँ</string>
+    <string name="alerts_subtitle">अगले छह महीनों में ग्रहों के महत्वपूर्ण बदलाव।</string>
+    <string name="alerts_none">आने वाले महीनों में कोई बड़ा बदलाव नहीं है।</string>
+
+    <!-- Charts -->
+    <string name="chart_south">दक्षिण भारतीय</string>
+    <string name="chart_north">उत्तर भारतीय</string>
+    <string name="tab_rasi">राशि</string>
+    <string name="tab_navamsa">नवांश</string>
+    <string name="tab_dashas">दशा</string>
+    <string name="tab_yogas">योग</string>
+    <string name="tab_doshas">दोष</string>
+    <string name="tab_panchanga">पंचांग</string>
+    <string name="tab_bhava">भाव</string>
+    <string name="tab_gemstones">रत्न</string>
+    <string name="tab_vargas">सभी वर्ग</string>
+    <string name="tab_kp">KP</string>
+    <string name="tab_shadbala">षड्बल</string>
+    <string name="tab_ashtakavarga">अष्टकवर्ग</string>
+    <string name="tab_nadi">नाड़ी</string>
+    <string name="tab_varshphal">वर्षफल</string>
+    <string name="tab_lalkitab">लाल किताब</string>
+    <string-array name="planet_abbr">
+        <item>सू</item><item>चं</item><item>मं</item><item>बु</item><item>गु</item>
+        <item>शु</item><item>श</item><item>रा</item><item>के</item><item>ल</item>
+    </string-array>
+    <string-array name="planet_names">
+        <item>सूर्य</item><item>चंद्र</item><item>मंगल</item><item>बुध</item><item>गुरु</item>
+        <item>शुक्र</item><item>शनि</item><item>राहु</item><item>केतु</item><item>लग्न</item>
+    </string-array>
+    <string-array name="sign_names">
+        <item>मेष</item><item>वृषभ</item><item>मिथुन</item><item>कर्क</item>
+        <item>सिंह</item><item>कन्या</item><item>तुला</item><item>वृश्चिक</item>
+        <item>धनु</item><item>मकर</item><item>कुंभ</item><item>मीन</item>
+    </string-array>
+
+    <!-- Data labels -->
+    <string name="k_tithi">तिथि</string>
+    <string name="k_nakshatra">नक्षत्र</string>
+    <string name="k_yoga">योग</string>
+    <string name="k_karana">करण</string>
+    <string name="k_vara">वार</string>
+    <string name="k_sunrise">सूर्योदय</string>
+    <string name="k_sunset">सूर्यास्त</string>
+    <string name="k_moonrise">चंद्रोदय</string>
+    <string name="k_rahu_kalam">राहु काल</string>
+    <string name="k_gulika">गुलिक काल</string>
+    <string name="k_yamaganda">यमगंड</string>
+    <string name="k_abhijit">अभिजीत मुहूर्त</string>
+    <string name="k_lagna">लग्न</string>
+    <string name="k_moon_sign">चंद्र राशि</string>
+    <string name="k_sun_sign">सूर्य राशि</string>
+    <string name="k_dasha">महादशा</string>
+    <string name="k_antardasha">अंतर्दशा</string>
+    <string name="k_score">अंक</string>
+    <string name="k_total">कुल</string>
+    <string name="k_verdict">निष्कर्ष</string>
+    <string name="k_start">आरंभ</string>
+    <string name="k_end">समाप्ति</string>
+    <string name="k_date">तारीख</string>
+    <string name="k_time">समय</string>
+    <string name="k_planet">ग्रह</string>
+    <string name="k_sign">राशि</string>
+    <string name="k_house">भाव</string>
+    <string name="k_degree">अंश</string>
+    <string name="k_lord">स्वामी</string>
+    <string name="k_strength">बल</string>
+    <string name="k_description">विवरण</string>
+    <string name="k_summary">सारांश</string>
+    <string name="k_forecast">फलादेश</string>
+    <string name="k_paksha">पक्ष</string>
+    <string name="k_masa">मास</string>
+    <string name="k_samvatsara">संवत्सर</string>
+    <string name="k_kind">प्रकार</string>
+    <string name="k_name">नाम</string>
+    <string name="k_reason">कारण</string>
+    <string name="k_quality">गुणवत्ता</string>
+    <string name="k_rank">क्रम</string>
+    <string name="k_retrograde">वक्री</string>
+    <string name="k_sign_lord">राशि स्वामी</string>
+    <string name="k_star_lord">नक्षत्र स्वामी</string>
+    <string name="k_sub_lord">उप स्वामी</string>
+    <string name="k_rupas">रूप</string>
+    <string name="k_ratio">अनुपात</string>
+    <string name="k_bindus">बिंदु</string>
+    <string name="k_manglik">मांगलिक</string>
+    <string name="k_doshas">दोष</string>
+    <string name="k_yogas">योग</string>
+    <string name="k_remedies">उपाय</string>
+    <string name="k_gunas">गुण</string>
+    <string name="k_koota">कूट</string>
+    <string name="k_max">अधिकतम</string>
+    <string name="k_obtained">प्राप्त</string>
+
+    <!-- Pro -->
+    <string name="pro_title">प्रो प्लान</string>
+    <string name="pro_bundle">प्रो बंडल</string>
+    <string name="pro_locked">प्रो सुविधा</string>
+    <string name="pro_locked_desc">गहन पेशेवर कुंडलियाँ ज्योतिषियों के लिए प्रो प्लान का हिस्सा हैं।</string>
+    <string name="pro_get">प्रो लें</string>
+    <string name="pro_get_short">प्रो लें</string>
+    <string name="pro_active_short">प्रो</string>
+    <string name="pro_price">%2$d दिनों के लिए %1$s</string>
+    <string name="pro_buy">%1$s में प्रो खरीदें</string>
+    <string name="pro_buy_short">खरीदें</string>
+    <string name="pro_extend">प्रो बढ़ाएँ</string>
+    <string name="pro_confirm">%2$d दिनों के प्रो के लिए आपके वॉलेट से %1$s लिए जाएँगे।</string>
+    <string name="pro_active_until">प्रो %1$s तक सक्रिय है</string>
+    <string name="pro_feat_vargas">सभी 16 वर्ग कुंडलियाँ</string>
+    <string name="pro_feat_kp">KP उप-स्वामी और भाव संधि</string>
+    <string name="pro_feat_strength">षड्बल और अष्टकवर्ग</string>
+    <string name="pro_feat_bundle">हर ग्राहक का पूरा बंडल, एक टैप में</string>
+    <string name="pro_feat_brand">आपके नाम और लोगो वाली रिपोर्ट और मिलान PDF</string>
+
+    <!-- Matching / Muhurta / Rectification -->
+    <string name="matching_title">कुंडली मिलान</string>
+    <string name="matching_subtitle">विवाह के लिए गुण मिलान और दोष जाँच।</string>
+    <string name="matching_person_a">पहला व्यक्ति</string>
+    <string name="matching_person_b">दूसरा व्यक्ति</string>
+    <string name="matching_add_person">नया व्यक्ति जोड़ें</string>
+    <string name="matching_run">मिलान देखें</string>
+    <string name="matching_score">%2$d में से %1$d गुण</string>
+    <string name="matching_pdf">PDF शेयर करें</string>
+    <string name="muhurta_title">मुहूर्त खोजें</string>
+    <string name="muhurta_subtitle">किसी महत्वपूर्ण शुरुआत के लिए शुभ समय खोजें।</string>
+    <string name="muhurta_event">अवसर</string>
+    <string name="muhurta_place">यह कहाँ होगा?</string>
+    <string name="muhurta_personal">%1$s की कुंडली से मिलाएँ</string>
+    <string name="muhurta_find">मुहूर्त खोजें</string>
+    <string name="muhurta_none">इन तारीखों में कोई शुभ समय नहीं मिला। तारीखों की सीमा बढ़ाकर देखें।</string>
+    <string name="ev_marriage">विवाह</string>
+    <string name="ev_griha_pravesam">गृह प्रवेश</string>
+    <string name="ev_vehicle">नया वाहन</string>
+    <string name="ev_business">नया व्यापार</string>
+    <string name="ev_travel">यात्रा</string>
+    <string name="ev_naming">नामकरण संस्कार</string>
+    <string name="rectify_title">जन्म-समय सहायक</string>
+    <string name="rectify_subtitle">%1$s के जीवन की कुछ बड़ी घटनाएँ बताइए, हम सबसे संभावित जन्म समय सुझाएँगे।</string>
+    <string name="rectify_add_event">जीवन की घटना जोड़ें</string>
+    <string name="rectify_hint">तारीख के साथ कम से कम दो घटनाएँ जोड़ें। जितनी ज़्यादा घटनाएँ, उतना बेहतर परिणाम।</string>
+    <string name="rectify_run">मेरा जन्म समय खोजें</string>
+    <string name="rectify_none">हम सही समय तय नहीं कर पाए। कुछ और घटनाएँ जोड़कर देखें।</string>
+    <string name="rectify_use">यह समय इस्तेमाल करें</string>
+    <string name="rectify_applied">जन्म समय बदलकर %1$s कर दिया गया</string>
+    <string name="le_marriage">विवाह</string>
+    <string name="le_child_birth">संतान का जन्म</string>
+    <string name="le_job_start">पहली नौकरी</string>
+    <string name="le_relocation">घर या शहर बदला</string>
+    <string name="le_parent_death">माता या पिता का निधन</string>
+    <string name="le_accident">दुर्घटना या ऑपरेशन</string>
+    <string name="le_graduation">पढ़ाई पूरी हुई</string>
+
+    <!-- Ask / chat / voice -->
+    <string name="ask_title">ज्योतिषी से पूछें</string>
+    <string name="ask_intro">करियर, विवाह, स्वास्थ्य, धन या परिवार के बारे में पूछें। उत्तर कुंडली पर आधारित होते हैं और आपकी भाषा में दिए जाते हैं।</string>
+    <string name="ask_new">नया प्रश्न</string>
+    <string name="ask_type">लिखें</string>
+    <string name="ask_speak">बोलें</string>
+    <string name="ask_history">पिछली बातचीत</string>
+    <string name="ask_history_empty">आपकी बातचीत यहाँ दिखेगी।</string>
+    <string name="price_per_question">%1$s प्रति प्रश्न</string>
+    <string name="questions_count">%1$d प्रश्न</string>
+    <string name="session_no_summary">बातचीत</string>
+    <string name="chat_title">ज्योतिषी</string>
+    <string name="chat_about">विषय:</string>
+    <string name="chat_empty_title">आप क्या जानना चाहते हैं?</string>
+    <string name="chat_empty_body">अपने शब्दों में पूछें। आप माइक पर टैप करके बोल भी सकते हैं।</string>
+    <string name="chat_first_free">आपका पहला प्रश्न मुफ़्त है</string>
+    <string name="chat_hint">अपना प्रश्न लिखें…</string>
+    <string name="chat_price_line">हर उत्तर के लिए %1$s · बैलेंस %2$s</string>
+    <string name="chat_thinking">कुंडली देखी जा रही है…</string>
+    <string name="chat_charged">%1$s कटे</string>
+    <string name="chat_no_charge">कोई शुल्क नहीं</string>
+    <string name="suggest_career">मेरे करियर में सुधार कब होगा?</string>
+    <string name="suggest_marriage">विवाह के लिए अच्छा समय कब है?</string>
+    <string name="suggest_health">मुझे अपने स्वास्थ्य का क्या ध्यान रखना चाहिए?</string>
+    <string name="suggest_year">यह साल मेरे लिए कैसा रहेगा?</string>
+    <string name="voice_listening">सुन रहे हैं…</string>
+    <string name="voice_thinking">सोच रहे हैं…</string>
+    <string name="voice_speaking">बोल रहे हैं… रोकने के लिए टैप करें</string>
+    <string name="voice_tap_to_speak">माइक पर टैप करें और बोलें</string>
+    <string name="voice_cloud_note">आपके फ़ोन में इस भाषा का वॉइस पैक नहीं है, इसलिए आवाज़ हमारे सर्वर से चलाई जा रही है।</string>
+    <string name="voice_hands_free">सुनते रहें</string>
+
+    <!-- Wallet -->
+    <string name="wallet_title">वॉलेट</string>
+    <string name="wallet_balance">बैलेंस</string>
+    <string name="wallet_balance_is">मौजूदा बैलेंस: %1$s</string>
+    <string name="wallet_history">इतिहास</string>
+    <string name="wallet_history_empty">अभी तक कोई लेन-देन नहीं।</string>
+    <string name="topup_title">पैसे जोड़ें</string>
+    <string name="topup_questions">लगभग %1$d प्रश्न</string>
+    <string name="topup_reason_question">यह उत्तर पाने के लिए अपने वॉलेट में पैसे जोड़ें।</string>
+    <string name="topup_reason_report">जीवन रिपोर्ट का मूल्य %1$s है। आगे बढ़ने के लिए अपने वॉलेट में पैसे जोड़ें।</string>
+    <string name="topup_reason_pro">प्रो प्लान का मूल्य %1$s है। आगे बढ़ने के लिए अपने वॉलेट में पैसे जोड़ें।</string>
+    <string name="topup_pending">भुगतान प्रक्रिया में है। पूरा होते ही आपका वॉलेट अपडेट हो जाएगा।</string>
+    <string name="topup_failed">भुगतान नहीं हो पाया। कोई पैसा नहीं कटा।</string>
+    <string name="topup_done">आपके वॉलेट में पैसे जुड़ गए।</string>
+    <string name="topup_unavailable">इस डिवाइस पर अभी Google Play भुगतान उपलब्ध नहीं है।</string>
+    <string name="topup_restore">छूटा हुआ भुगतान जाँचें</string>
+    <string name="lt_topup">पैसे जोड़े गए</string>
+    <string name="lt_query">प्रश्न का उत्तर</string>
+    <string name="lt_report">जीवन रिपोर्ट</string>
+    <string name="lt_refund">रिफ़ंड</string>
+    <string name="lt_trial">स्वागत उपहार</string>
+    <string name="lt_subscription">प्रो प्लान</string>
+    <string name="lt_adjust">समायोजन</string>
+
+    <!-- Report -->
+    <string name="report_title">जीवन रिपोर्ट</string>
+    <string name="report_headline">आपकी संपूर्ण जीवन रिपोर्ट</string>
+    <string name="report_pitch">18 अध्यायों में लगभग एक लाख शब्द: बचपन, शिक्षा, करियर, विवाह, संतान, स्वास्थ्य, धन और आने वाले दशक।</string>
+    <string name="report_for">रिपोर्ट किसके लिए</string>
+    <string name="report_teaser_title">मुफ़्त नमूना अध्याय</string>
+    <string name="report_teaser_cta">एक अध्याय मुफ़्त पढ़ें</string>
+    <string name="report_chapters_count">पूरी रिपोर्ट में %1$d अध्याय हैं:</string>
+    <string name="report_branded">रिपोर्ट में मेरा ब्रांड जोड़ें</string>
+    <string name="report_buy">पूरी रिपोर्ट लें · %1$s</string>
+    <string name="report_buy_short">खरीदें</string>
+    <string name="report_confirm_title">जीवन रिपोर्ट खरीदें?</string>
+    <string name="report_confirm_body">%1$s की संपूर्ण जीवन रिपोर्ट के लिए आपके वॉलेट से %2$s लिए जाएँगे।</string>
+    <string name="report_mine">मेरी रिपोर्ट</string>
+    <string name="report_none">आपने अभी तक कोई रिपोर्ट नहीं खरीदी है।</string>
+    <string name="report_generating">आपकी रिपोर्ट लिखी जा रही है: %2$d में से %1$d अध्याय तैयार</string>
+    <string name="report_notify_note">तैयार होने पर हम आपको सूचना देंगे। आप ऐप बंद कर सकते हैं।</string>
+    <string name="report_failed">रिपोर्ट %2$d में से %1$d अध्याय पर रुक गई।</string>
+    <string name="report_resume">रिपोर्ट पूरी करें</string>
+    <string name="report_ready">तैयार</string>
+    <string name="report_read">पढ़ें</string>
+    <string name="report_toc">अध्याय</string>
+    <string name="report_pdf">PDF खोलें</string>
+    <string name="report_share">PDF शेयर करें</string>
+
+    <!-- Astrologer -->
+    <string name="clients_title">ग्राहक</string>
+    <string name="clients_search">नाम, स्थान या टिप्पणी से खोजें</string>
+    <string name="clients_empty">अभी कोई ग्राहक नहीं। अपना पहला ग्राहक जोड़ें।</string>
+    <string name="clients_no_match">आपकी खोज से कोई ग्राहक नहीं मिला।</string>
+    <string name="client_add">ग्राहक जोड़ें</string>
+    <string name="client_add_title">नया ग्राहक</string>
+    <string name="client_title">ग्राहक</string>
+    <string name="brand_title">ब्रांड सेटिंग</string>
+    <string name="brand_subtitle">ग्राहकों के साथ शेयर की गई रिपोर्ट और मिलान PDF पर दिखेगा।</string>
+    <string name="brand_name">दिखने वाला नाम</string>
+    <string name="brand_phone">फ़ोन</string>
+    <string name="brand_logo">लोगो लिंक</string>
+    <string name="brand_footer">नीचे का संदेश</string>
+
+    <!-- More / settings -->
+    <string name="settings_prefs">पसंद</string>
+    <string name="settings_large_text">बड़े अक्षर</string>
+    <string name="settings_large_text_desc">बड़े अक्षर, पढ़ने में आसान</string>
+    <string name="settings_help">मदद</string>
+    <string name="settings_legal">कानूनी जानकारी</string>
+    <string name="settings_privacy">गोपनीयता और डेटा</string>
+    <string name="logout">साइन आउट</string>
+    <string name="logout_confirm">इस फ़ोन पर उद्यत से साइन आउट करें?</string>
+
+    <!-- Notifications -->
+    <string name="notif_title">सूचनाएँ</string>
+    <string name="notif_daily">दैनिक पंचांग</string>
+    <string name="notif_daily_desc">हर सुबह: दिन का पंचांग और आपका फलादेश</string>
+    <string name="notif_transits">गोचर सूचनाएँ</string>
+    <string name="notif_transits_desc">साढ़े साती, दशा परिवर्तन और ग्रहण</string>
+    <string name="notif_promos">ऑफ़र</string>
+    <string name="notif_promos_desc">कभी-कभी त्योहारों के ऑफ़र</string>
+    <string name="notif_blocked">इस फ़ोन पर उद्यत की सूचनाएँ बंद हैं।</string>
+    <string name="notif_open_settings">सेटिंग खोलें</string>
+    <string name="notif_perm_title">रोज़ का पंचांग पाना चाहेंगे?</string>
+    <string name="notif_perm_body">दैनिक फलादेश, गोचर सूचनाओं और रिपोर्ट तैयार होने की जानकारी के लिए सूचनाओं की अनुमति दें।</string>
+    <string name="notif_report_ready_title">आपकी जीवन रिपोर्ट तैयार है</string>
+    <string name="notif_report_ready_body">पढ़ना शुरू करने के लिए टैप करें।</string>
+    <string name="channel_daily">दैनिक पंचांग</string>
+    <string name="channel_transits">गोचर सूचनाएँ</string>
+    <string name="channel_reports">रिपोर्ट</string>
+    <string name="channel_account">वॉलेट और सहायता</string>
+
+    <!-- Refunds -->
+    <string name="refunds_title">रिफ़ंड</string>
+    <string name="refund_request">रिफ़ंड माँगें</string>
+    <string name="refund_intro">किसी उत्तर या रिपोर्ट से संतुष्ट नहीं हैं? हमें कारण बताइए, हमारी टीम इसकी समीक्षा करेगी।</string>
+    <string name="refund_ref">संदर्भ</string>
+    <string name="refund_reason">क्या गड़बड़ हुई?</string>
+    <string name="refund_sent">अनुरोध भेज दिया गया। हम आमतौर पर 2 कार्य-दिवसों में उत्तर देते हैं।</string>
+    <string name="refunds_mine">मेरे अनुरोध</string>
+    <string name="refunds_none">कोई रिफ़ंड अनुरोध नहीं।</string>
+    <string name="refund_requested">समीक्षा में</string>
+    <string name="refund_approved">स्वीकृत</string>
+    <string name="refund_rejected">अस्वीकृत</string>
+
+    <!-- Support -->
+    <string name="support_title">मदद और सहायता</string>
+    <string name="support_new">हमें लिखें</string>
+    <string name="support_message">समस्या बताइए</string>
+    <string name="support_sent">धन्यवाद। हमें आपका संदेश मिल गया है।</string>
+    <string name="support_whatsapp">WhatsApp पर हमसे बात करें</string>
+    <string name="support_whatsapp_text">नमस्ते उद्यत टीम, मुझे मदद चाहिए। मेरी खाता आईडी: %1$s</string>
+    <string name="support_mine">मेरे टिकट</string>
+    <string name="support_none">अभी कोई टिकट नहीं।</string>
+    <string name="support_open">खुला</string>
+    <string name="support_resolved">हल हो गया</string>
+    <string name="sc_payment">भुगतान</string>
+    <string name="sc_report">रिपोर्ट</string>
+    <string name="sc_answer">उत्तर</string>
+    <string name="sc_app">ऐप में समस्या</string>
+    <string name="sc_account">खाता</string>
+    <string name="sc_other">अन्य</string>
+
+    <!-- Account data -->
+    <string name="account_export">मेरा डेटा डाउनलोड करें</string>
+    <string name="account_export_desc">अपनी प्रोफ़ाइल, प्रश्न, रिपोर्ट और वॉलेट इतिहास की एक कॉपी फ़ाइल के रूप में पाएँ।</string>
+    <string name="account_export_cta">मेरा डेटा सेव करें</string>
+    <string name="export_saved">आपकी डेटा फ़ाइल सेव हो गई है।</string>
+    <string name="account_delete">खाता मिटाएँ</string>
+    <string name="account_delete_desc">आपका खाता तुरंत बंद हो जाएगा और 30 दिनों के बाद सारा डेटा हमेशा के लिए मिटा दिया जाएगा। वॉलेट में बची राशि वापस नहीं मिलेगी।</string>
+    <string name="account_delete_body">इससे आपका खाता बंद हो जाएगा। आपकी प्रोफ़ाइल, बातचीत और रिपोर्ट 30 दिनों के बाद हमेशा के लिए मिटा दी जाएँगी। वॉलेट में बची राशि वापस नहीं मिल सकेगी।</string>
+    <string name="account_delete_understand">मैं समझता/समझती हूँ, मेरा खाता मिटाएँ</string>
+    <string name="action_change">बदलें</string>
+</resources>

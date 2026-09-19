@@ -1,0 +1,13 @@
+# Upload only what the container build needs (keeps terraform state, .env
+# files, the Android project and local venvs out of Cloud Build).
+/*
+!/Dockerfile
+!/cloudbuild.yaml
+!/backend/
+!/engine/
+backend/local.db
+backend/.env*
+backend/static/udhyath.apk
+**/__pycache__/
+**/.pytest_cache/
+**/*.pyc

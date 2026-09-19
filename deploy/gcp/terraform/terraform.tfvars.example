@@ -1,0 +1,44 @@
+project_id   = "udhyath-prod"
+admin_emails = "you@example.com"
+
+# region            = "asia-south1"
+# min_instances     = 0      # 1 = always warm (~Rs 3-4k/month at 2 vCPU/2 GiB)
+# max_instances     = 10
+# concurrency       = 20
+# play_package_name = "com.udhyath.app"
+
+# Firebase web config (Project settings -> General -> Web app) for the
+# operator dashboard's Google sign-in. Public values.
+# firebase_web_api_key = "AIza..."
+# firebase_web_app_id  = "1:1234567890:web:abc123"
+
+# Razorpay (web top-ups / user-choice billing). Leave empty to disable.
+# Model API keys (required). Claude runs on the Anthropic API, Gemini on the
+# Gemini API paid tier -- no Vertex AI.
+anthropic_api_key = "sk-ant-..."
+gemini_api_key    = "AIza..."
+
+# razorpay_key_id         = "rzp_live_..."
+# razorpay_key_secret     = "..."
+# razorpay_webhook_secret = "..."
+
+# extra_secrets = { ALERT_WEBHOOK_URL = "https://hooks.slack.com/..." }
+
+# Non-secret env overrides (pricing, legal contact, model ids...)
+# app_env = {
+#   LEGAL_ENTITY_NAME      = "Your Company"
+#   SUPPORT_EMAIL          = "support@example.com"
+#   GRIEVANCE_OFFICER_NAME = "..."
+#   GRIEVANCE_EMAIL        = "grievance@example.com"
+#   LEGAL_ADDRESS          = "..., Hyderabad, Telangana, India"
+#   LEGAL_CITY             = "Hyderabad"
+# }
+
+# Custom domain via HTTPS load balancer (~US$18/month); empty = run.app URL.
+# domain = "api.udhyath.com"
+
+# Budget alert
+# billing_account     = "012345-6789AB-CDEF01"
+# budget_amount       = 10000
+# budget_currency     = "INR"
+# budget_alert_emails = ["you@example.com"]

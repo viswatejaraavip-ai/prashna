@@ -1,0 +1,9 @@
+*
+!backend
+!engine
+backend/local.db
+backend/.env*
+backend/static/udhyath.apk
+**/__pycache__
+**/.pytest_cache
+**/*.pyc

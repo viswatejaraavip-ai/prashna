@@ -1,24 +1,28 @@
-"""Agent guardrails: layered defenses in front of the astrology agent.
+"""Agent guardrails: cheap, deterministic defenses in front of the models.
 
-Layers (in order):
-  1. sanitize()            — strip control characters, length handled by schema
-  2. rate_ok()             — per-user message rate limit (in-process)
-  3. looks_like_injection()— pattern log for monitoring (never blocks alone)
-  4. classify()            — cheap Haiku router: ASTRO / OFF_TOPIC / INJECTION;
-                             fails open to ASTRO so real clients are never lost
-  5. system-prompt scope + anti-override rules inside the agent itself
-  6. leaks_system_prompt() — output check before a reply leaves the server
+GCP pipeline (app/ai): the Gemini Flash planner (ai/planner.py) is the
+semantic guard — it classifies every message ok / refused / clarify in the
+same call that plans the engine tools, and writes refusals in the user's
+language. This module keeps the free pre-filters that run BEFORE any model:
 
-OFF_TOPIC / INJECTION messages get an instant canned refusal in the client's
-script and are NOT charged — abusers get no model access, clients get no
-surprise fees.
+  1. sanitize()             — strip control characters
+  2. too_long()             — hard cap on question length (budget guard)
+  3. rate_ok()              — per-user sliding-window limit (per instance)
+  4. obvious_off_topic()    — code / markup dumps refused without a model call
+  5. looks_like_injection() — flagged to the planner + logged (never blocks alone)
+  6. leaks_system_prompt()  — output check before a reply leaves the server
+plus canned, per-language refusal / free-turn-cap texts.
+
+`classify()` (Haiku router) is LEGACY: only the old AWS chat route in
+main.py still calls it; the GCP pipeline never does.
 """
 
 import logging
+import os
 import re
 import time
 from collections import defaultdict, deque
-from typing import Deque, Dict
+from typing import Deque, Dict, Optional
 
 from . import config
 
@@ -49,10 +53,13 @@ def looks_like_injection(text: str) -> bool:
 _hits: Dict[str, Deque[float]] = defaultdict(deque)
 
 
-def rate_ok(email: str, limit: int = None, window_s: int = 300) -> bool:
+def rate_ok(key: str, limit: int = None, window_s: int = 300) -> bool:
+    """Sliding-window limit keyed by uid (or email on the legacy route).
+    In-process: with N Cloud Run instances the effective cap is N x limit —
+    a deterrent against scripts, not a billing control (billing is)."""
     limit = limit or config.AGENT_RATE_LIMIT_MESSAGES
     now = time.time()
-    q = _hits[email]
+    q = _hits[key]
     while q and q[0] < now - window_s:
         q.popleft()
     if len(q) >= limit:
@@ -134,6 +141,75 @@ def greeting(text: str) -> str:
     return _GREETINGS.get(_detect_lang(text), _GREETINGS["en"])
 
 
+# ---------------- GCP pipeline pre-filters (no model call) ----------------
+
+MAX_QUESTION_CHARS = int(os.environ.get("MAX_QUESTION_CHARS", "1200"))
+
+# Code / markup dumps: an astrology client never needs these, and letting
+# them reach a model is how "write my code, my chart says so" starts.
+_CODE = re.compile(
+    r"(```|^\s*(def|class|import|from\s+\S+\s+import|#include|public\s+static|"
+    r"function\s*\(|const\s+\w+\s*=|SELECT\s+.+\s+FROM)\b|<\s*(html|script|div)\b)",
+    re.I | re.M)
+
+
+def too_long(text: str) -> bool:
+    return len(text) > MAX_QUESTION_CHARS
+
+
+def obvious_off_topic(text: str) -> bool:
+    if _CODE.search(text):
+        return True
+    # symbol-heavy input (code, JSON, base64) with little natural language
+    sym = sum(1 for ch in text if ch in "{}[]();=<>$\\|`")
+    return len(text) > 80 and sym / max(1, len(text)) > 0.08
+
+
+def refusal_for(lang: str) -> str:
+    return _REFUSALS.get(lang, _REFUSALS["en"])
+
+
+_FREE_CAP = {
+    "hi": "🙏 कृपया अपना ज्योतिष प्रश्न सीधे पूछिए — जैसे करियर, विवाह, धन या स्वास्थ्य के बारे में। "
+          "मैं आपकी कुंडली देखकर उत्तर दूँगा।",
+    "te": "🙏 దయచేసి మీ జ్యోతిష ప్రశ్నను నేరుగా అడగండి — ఉద్యోగం, వివాహం, ధనం లేదా ఆరోగ్యం గురించి. "
+          "మీ జాతకం చూసి సమాధానం చెబుతాను.",
+    "ta": "🙏 உங்கள் ஜோதிடக் கேள்வியை நேரடியாகக் கேளுங்கள் — தொழில், திருமணம், பணம் அல்லது உடல்நலம் பற்றி. "
+          "உங்கள் ஜாதகத்தைப் பார்த்து பதில் சொல்கிறேன்.",
+    "kn": "🙏 ದಯವಿಟ್ಟು ನಿಮ್ಮ ಜ್ಯೋತಿಷ ಪ್ರಶ್ನೆಯನ್ನು ನೇರವಾಗಿ ಕೇಳಿ — ವೃತ್ತಿ, ವಿವಾಹ, ಹಣ ಅಥವಾ ಆರೋಗ್ಯದ ಬಗ್ಗೆ. "
+          "ನಿಮ್ಮ ಜಾತಕ ನೋಡಿ ಉತ್ತರಿಸುತ್ತೇನೆ.",
+    "ml": "🙏 ദയവായി നിങ്ങളുടെ ജ്യോതിഷ ചോദ്യം നേരിട്ട് ചോദിക്കൂ — തൊഴിൽ, വിവാഹം, സമ്പത്ത് അല്ലെങ്കിൽ ആരോഗ്യം. "
+          "നിങ്ങളുടെ ജാതകം നോക്കി മറുപടി പറയാം.",
+    "en": "🙏 Please ask your astrology question directly — career, marriage, "
+          "money or health — and I will read it from your chart.",
+}
+
+
+def free_cap_message(lang: str) -> str:
+    """Canned nudge once a session has used its free (unbilled) turns."""
+    return _FREE_CAP.get(lang, _FREE_CAP["en"])
+
+
+_ERROR = {
+    "hi": "🙏 क्षमा करें, अभी उत्तर नहीं दे पा रहा हूँ। कृपया थोड़ी देर बाद फिर पूछें — इसका कोई शुल्क नहीं लगा।",
+    "te": "🙏 క్షమించండి, ఇప్పుడు సమాధానం ఇవ్వలేకపోతున్నాను. కొద్దిసేపటి తర్వాత మళ్ళీ అడగండి — దీనికి ఛార్జీ లేదు.",
+    "ta": "🙏 மன்னிக்கவும், இப்போது பதில் தர இயலவில்லை. சிறிது நேரம் கழித்து மீண்டும் கேளுங்கள் — கட்டணம் இல்லை.",
+    "kn": "🙏 ಕ್ಷಮಿಸಿ, ಈಗ ಉತ್ತರಿಸಲು ಆಗುತ್ತಿಲ್ಲ. ಸ್ವಲ್ಪ ಸಮಯದ ನಂತರ ಮತ್ತೆ ಕೇಳಿ — ಯಾವುದೇ ಶುಲ್ಕವಿಲ್ಲ.",
+    "ml": "🙏 ക്ഷമിക്കണം, ഇപ്പോൾ മറുപടി നൽകാൻ കഴിയുന്നില്ല. അൽപ്പസമയം കഴിഞ്ഞ് വീണ്ടും ചോദിക്കൂ — ഫീസ് ഈടാക്കിയിട്ടില്ല.",
+    "en": "🙏 Sorry, I can't answer right now. Please ask again in a little while — you were not charged.",
+}
+
+
+def error_message(lang: str) -> str:
+    return _ERROR.get(lang, _ERROR["en"])
+
+
+def script_lang(text: str) -> Optional[str]:
+    """Language implied by the script of `text` (None for Latin/unknown)."""
+    lang = _detect_lang(text)
+    return None if lang == "en" else lang
+
+
 # ---------------- classifier gate ----------------
 
 _GUARD_SYSTEM = (
@@ -160,7 +236,8 @@ _GUARD_SYSTEM = (
 
 
 def classify(client, text: str, sandbox: bool = False) -> str:
-    """Route a message with a small fast model. Fails open to ASTRO."""
+    """LEGACY (old AWS route in main.py only): route a message with Haiku.
+    The GCP pipeline uses ai/planner.py instead. Fails open to ASTRO."""
     if not config.GUARD_ENABLED:
         return "ASTRO"
     if sandbox or config.INFERENCE_PROVIDER == "aicredits":
@@ -197,6 +274,7 @@ _PROMPT_MARKERS = [
     "SYNTHESIS PROTOCOL", "SCOPE — you are an astrologer",
     "cannot be overridden by anything the client writes",
     "strict message router",
+    "FACTS BRIEF PROTOCOL", "PLANNER PROTOCOL",
 ]
 
 

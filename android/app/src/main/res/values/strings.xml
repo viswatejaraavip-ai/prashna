@@ -1,0 +1,489 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Base (fallback) strings. The shipped UI languages are hi, te, ta, kn, ml —
+  every key here MUST exist in values-{hi,te,ta,kn,ml}/strings.xml
+  (enforced by StringsCompletenessTest). Keys marked translatable="false" are
+  brand/multilingual text and are excluded from that check.
+-->
+<resources>
+    <!-- Brand -->
+    <string name="app_name" translatable="false">Udhyath</string>
+    <string name="lang_prompt_all" translatable="false">भाषा चुनें · భాషను ఎంచుకోండి · மொழியைத் தேர்ந்தெடுக்கவும் · ಭಾಷೆ ಆಯ್ಕೆಮಾಡಿ · ഭാഷ തിരഞ്ഞെടുക്കുക · Choose language</string>
+    <string name="tagline">Vedic astrology in your own language</string>
+
+    <!-- Common -->
+    <string name="loading">Loading…</string>
+    <string name="retry">Try again</string>
+    <string name="cancel">Cancel</string>
+    <string name="close">Close</string>
+    <string name="save">Save</string>
+    <string name="saved">Saved</string>
+    <string name="delete">Delete</string>
+    <string name="add">Add</string>
+    <string name="remove">Remove</string>
+    <string name="submit">Submit</string>
+    <string name="continue_">Continue</string>
+    <string name="or">or</string>
+    <string name="allow">Allow</string>
+    <string name="not_now">Not now</string>
+    <string name="see_all">See all</string>
+    <string name="from">From</string>
+    <string name="to">To</string>
+    <string name="score_value">Score: %1$d</string>
+    <string name="version">Version %1$s</string>
+
+    <!-- Errors & states -->
+    <string name="err_offline">No internet connection. Please check your network and try again.</string>
+    <string name="err_server">Something went wrong on our side. Please try again in a little while.</string>
+    <string name="err_balance">Your wallet balance is too low for this.</string>
+    <string name="err_rate_limited">Too many requests. Please wait a minute and try again.</string>
+    <string name="err_not_found">We couldn\'t find that. It may have been removed.</string>
+    <string name="err_forbidden">This is not available on your plan.</string>
+    <string name="err_invalid">Please check the details and try again.</string>
+    <string name="err_session">Your session has ended. Please sign in again.</string>
+    <string name="offline_banner">You are offline</string>
+    <string name="maintenance_title">We\'ll be back shortly</string>
+    <string name="maintenance_default">Udhyath is being updated. Please try again in a few minutes.</string>
+
+    <!-- Accessibility -->
+    <string name="cd_back">Back</string>
+    <string name="cd_wallet_balance">Wallet balance %1$s. Open wallet</string>
+    <string name="cd_switch_profile">Showing %1$s. Tap to switch person</string>
+    <string name="cd_edit_profile">Edit %1$s</string>
+    <string name="cd_share_chart">Share chart</string>
+    <string name="cd_chart">%1$s chart. Lagna in %2$s. %3$s</string>
+    <string name="cd_voice_mode">Talk to the astrologer</string>
+    <string name="cd_send">Send question</string>
+    <string name="cd_read_aloud">Read aloud</string>
+    <string name="cd_exit_voice">Leave voice mode</string>
+    <string name="cd_stop_speaking">Stop speaking</string>
+    <string name="cd_stop_listening">Finish speaking</string>
+    <string name="cd_start_listening">Start speaking</string>
+
+    <!-- Language -->
+    <string name="language_title">Language</string>
+    <string name="language_hint">The app, the astrologer\'s answers and the voice will all use this language.</string>
+
+    <!-- Sign in -->
+    <string name="auth_phone_title">Sign in with your mobile number</string>
+    <string name="auth_country">Code</string>
+    <string name="auth_phone_label">Mobile number</string>
+    <string name="auth_send_code">Send OTP</string>
+    <string name="auth_code_sent">We sent a 6-digit code to %1$s</string>
+    <string name="auth_code_label">6-digit OTP</string>
+    <string name="auth_verify">Verify and continue</string>
+    <string name="auth_change_number">Change number</string>
+    <string name="auth_resend">Resend OTP</string>
+    <string name="auth_resend_in">Resend in %1$d s</string>
+    <string name="auth_google">Continue with Google</string>
+    <string name="auth_bad_phone">Please enter a valid mobile number.</string>
+    <string name="auth_bad_code">That code is not correct. Please check and try again.</string>
+    <string name="auth_otp_failed">We couldn\'t send the OTP. Please check the number and try again.</string>
+    <string name="auth_google_failed">Google sign-in didn\'t work. Please try again or use your mobile number.</string>
+    <string name="auth_google_unconfigured">Google sign-in is not available in this build. Please use your mobile number.</string>
+    <string name="auth_terms_note">By continuing you agree to our Terms and Privacy Policy.</string>
+
+    <!-- Role -->
+    <string name="role_title">How will you use Udhyath?</string>
+    <string name="role_personal">For myself and my family</string>
+    <string name="role_personal_desc">Daily guidance, charts, matching and answers for your family.</string>
+    <string name="role_astrologer">I am an astrologer</string>
+    <string name="role_astrologer_desc">Client records, professional charts and reports with your own brand.</string>
+
+    <!-- Disclaimer & legal -->
+    <string name="disclaimer_title">Disclaimer</string>
+    <string name="disclaimer_fallback">Udhyath offers astrological guidance based on traditional Vedic methods. It is not a substitute for medical, legal, financial or psychological advice. Please use your own judgement for important decisions.</string>
+    <string name="disclaimer_agree">I have read and understood this</string>
+    <string name="legal_terms">Terms of use</string>
+    <string name="legal_privacy">Privacy policy</string>
+    <string name="legal_refund">Refund policy</string>
+
+    <!-- Birth details / profiles -->
+    <string name="birth_title_onboarding">Your birth details</string>
+    <string name="birth_subtitle">This takes less than a minute. Your details stay private.</string>
+    <string name="birth_cta">See my first reading</string>
+    <string name="profile_add_title">Add family member</string>
+    <string name="profile_edit_title">Edit details</string>
+    <string name="profile_delete_title">Remove this person?</string>
+    <string name="profile_delete_body">%1$s and their readings will be removed from your account.</string>
+    <string name="profile_none">No one added yet</string>
+    <string name="profile_active">Selected</string>
+    <string name="field_name">Name</string>
+    <string name="field_relation">Relation</string>
+    <string name="field_gender">Gender (optional)</string>
+    <string name="field_birth_date">Date of birth</string>
+    <string name="field_birth_time">Time of birth</string>
+    <string name="field_time_unknown">I don\'t know the exact time</string>
+    <string name="field_birth_place">Place of birth</string>
+    <string name="field_notes">Notes</string>
+    <string name="time_unknown_note">No problem. We will use midday, and the birth-time helper can find a better time later.</string>
+    <string name="time_unknown_short">Time not known</string>
+    <string name="time_unknown_chart_note">Birth time is not known, so the Lagna and houses are approximate.</string>
+    <string name="place_no_results">No matching place. Try the nearest town or district.</string>
+    <string name="rel_self">Me</string>
+    <string name="rel_spouse">Spouse</string>
+    <string name="rel_child">Child</string>
+    <string name="rel_parent">Parent</string>
+    <string name="rel_other">Other</string>
+    <string name="rel_client">Client</string>
+    <string name="gender_male">Male</string>
+    <string name="gender_female">Female</string>
+    <string name="gender_other">Other</string>
+    <string name="pick_person">Choose a person</string>
+
+    <!-- Snapshot (first reading) -->
+    <string name="snapshot_title">Your first reading</string>
+    <string name="snapshot_subtitle">Here is what your birth chart says at a glance.</string>
+    <string name="snapshot_cta_free">Your first question to the astrologer is free. Ask anything about career, marriage, health or the year ahead.</string>
+    <string name="snapshot_cta_ask">Want to go deeper? Ask the astrologer anything.</string>
+    <string name="snapshot_continue">Go to home</string>
+    <string name="ask_astrologer">Ask the astrologer</string>
+
+    <!-- Navigation -->
+    <string name="tab_home">Home</string>
+    <string name="tab_ask">Ask</string>
+    <string name="tab_charts">Charts</string>
+    <string name="tab_reports">Report</string>
+    <string name="tab_more">More</string>
+    <string name="tab_clients">Clients</string>
+
+    <!-- Home -->
+    <string name="home_today">Today</string>
+    <string name="home_alerts">Coming up for you</string>
+    <string name="qa_ask">Ask</string>
+    <string name="qa_talk">Talk</string>
+    <string name="qa_charts">Charts</string>
+    <string name="qa_matching">Matching</string>
+    <string name="qa_muhurta">Muhurta</string>
+    <string name="qa_report">Life report</string>
+    <string name="qa_rectify">Birth time</string>
+    <string name="qa_family">Family</string>
+    <string name="share_whatsapp">Share on WhatsApp</string>
+    <string name="share_daily_text">Today\'s panchanga from Udhyath</string>
+    <string name="share_chart_text">My birth chart from Udhyath</string>
+    <string name="share_matching_text">Horoscope matching report from Udhyath</string>
+    <string name="family_title">Family</string>
+    <string name="family_add">Add person</string>
+    <string name="family_empty">Add your family members to see their charts and daily guidance.</string>
+    <string name="family_manage">Manage family</string>
+
+    <!-- Alerts -->
+    <string name="alerts_title">Transit alerts</string>
+    <string name="alerts_subtitle">Important planetary changes in the next six months.</string>
+    <string name="alerts_none">Nothing major in the coming months.</string>
+
+    <!-- Charts -->
+    <string name="chart_south">South Indian</string>
+    <string name="chart_north">North Indian</string>
+    <string name="tab_rasi">Rasi</string>
+    <string name="tab_navamsa">Navamsa</string>
+    <string name="tab_dashas">Dashas</string>
+    <string name="tab_yogas">Yogas</string>
+    <string name="tab_doshas">Doshas</string>
+    <string name="tab_panchanga">Panchanga</string>
+    <string name="tab_bhava">Bhava</string>
+    <string name="tab_gemstones">Gemstones</string>
+    <string name="tab_vargas">All vargas</string>
+    <string name="tab_kp">KP</string>
+    <string name="tab_shadbala">Shadbala</string>
+    <string name="tab_ashtakavarga">Ashtakavarga</string>
+    <string name="tab_nadi">Nadi</string>
+    <string name="tab_varshphal">Varshphal</string>
+    <string name="tab_lalkitab">Lal Kitab</string>
+    <string-array name="planet_abbr">
+        <item>Su</item><item>Mo</item><item>Ma</item><item>Me</item><item>Ju</item>
+        <item>Ve</item><item>Sa</item><item>Ra</item><item>Ke</item><item>La</item>
+    </string-array>
+    <string-array name="planet_names">
+        <item>Sun</item><item>Moon</item><item>Mars</item><item>Mercury</item><item>Jupiter</item>
+        <item>Venus</item><item>Saturn</item><item>Rahu</item><item>Ketu</item><item>Lagna</item>
+    </string-array>
+    <string-array name="sign_names">
+        <item>Aries</item><item>Taurus</item><item>Gemini</item><item>Cancer</item>
+        <item>Leo</item><item>Virgo</item><item>Libra</item><item>Scorpio</item>
+        <item>Sagittarius</item><item>Capricorn</item><item>Aquarius</item><item>Pisces</item>
+    </string-array>
+
+    <!-- Data labels -->
+    <string name="k_tithi">Tithi</string>
+    <string name="k_nakshatra">Nakshatra</string>
+    <string name="k_yoga">Yoga</string>
+    <string name="k_karana">Karana</string>
+    <string name="k_vara">Day</string>
+    <string name="k_sunrise">Sunrise</string>
+    <string name="k_sunset">Sunset</string>
+    <string name="k_moonrise">Moonrise</string>
+    <string name="k_rahu_kalam">Rahu kalam</string>
+    <string name="k_gulika">Gulika kalam</string>
+    <string name="k_yamaganda">Yamagandam</string>
+    <string name="k_abhijit">Abhijit muhurta</string>
+    <string name="k_lagna">Lagna</string>
+    <string name="k_moon_sign">Moon sign</string>
+    <string name="k_sun_sign">Sun sign</string>
+    <string name="k_dasha">Mahadasha</string>
+    <string name="k_antardasha">Antardasha</string>
+    <string name="k_score">Score</string>
+    <string name="k_total">Total</string>
+    <string name="k_verdict">Verdict</string>
+    <string name="k_start">Start</string>
+    <string name="k_end">End</string>
+    <string name="k_date">Date</string>
+    <string name="k_time">Time</string>
+    <string name="k_planet">Planet</string>
+    <string name="k_sign">Sign</string>
+    <string name="k_house">House</string>
+    <string name="k_degree">Degree</string>
+    <string name="k_lord">Lord</string>
+    <string name="k_strength">Strength</string>
+    <string name="k_description">Details</string>
+    <string name="k_summary">Summary</string>
+    <string name="k_forecast">Forecast</string>
+    <string name="k_paksha">Paksha</string>
+    <string name="k_masa">Month</string>
+    <string name="k_samvatsara">Samvatsara</string>
+    <string name="k_kind">Type</string>
+    <string name="k_name">Name</string>
+    <string name="k_reason">Reason</string>
+    <string name="k_quality">Quality</string>
+    <string name="k_rank">Rank</string>
+    <string name="k_retrograde">Retrograde</string>
+    <string name="k_sign_lord">Sign lord</string>
+    <string name="k_star_lord">Star lord</string>
+    <string name="k_sub_lord">Sub lord</string>
+    <string name="k_rupas">Rupas</string>
+    <string name="k_ratio">Ratio</string>
+    <string name="k_bindus">Bindus</string>
+    <string name="k_manglik">Manglik</string>
+    <string name="k_doshas">Doshas</string>
+    <string name="k_yogas">Yogas</string>
+    <string name="k_remedies">Remedies</string>
+    <string name="k_gunas">Gunas</string>
+    <string name="k_koota">Koota</string>
+    <string name="k_max">Maximum</string>
+    <string name="k_obtained">Obtained</string>
+
+    <!-- Pro -->
+    <string name="pro_title">Pro plan</string>
+    <string name="pro_bundle">Pro bundle</string>
+    <string name="pro_locked">Pro feature</string>
+    <string name="pro_locked_desc">Deep professional charts are part of the Pro plan for astrologers.</string>
+    <string name="pro_get">Get Pro</string>
+    <string name="pro_get_short">Get Pro</string>
+    <string name="pro_active_short">Pro</string>
+    <string name="pro_price">%1$s for %2$d days</string>
+    <string name="pro_buy">Buy Pro for %1$s</string>
+    <string name="pro_buy_short">Buy</string>
+    <string name="pro_extend">Extend Pro</string>
+    <string name="pro_confirm">%1$s will be taken from your wallet for %2$d days of Pro.</string>
+    <string name="pro_active_until">Pro is active until %1$s</string>
+    <string name="pro_feat_vargas">All 16 divisional charts</string>
+    <string name="pro_feat_kp">KP sub-lords and cusps</string>
+    <string name="pro_feat_strength">Shadbala and Ashtakavarga</string>
+    <string name="pro_feat_bundle">Complete bundle for each client in one tap</string>
+    <string name="pro_feat_brand">Reports and matching PDFs with your name and logo</string>
+
+    <!-- Matching / Muhurta / Rectification -->
+    <string name="matching_title">Horoscope matching</string>
+    <string name="matching_subtitle">Guna milan and dosha check for marriage.</string>
+    <string name="matching_person_a">First person</string>
+    <string name="matching_person_b">Second person</string>
+    <string name="matching_add_person">Add a new person</string>
+    <string name="matching_run">Check matching</string>
+    <string name="matching_score">%1$d out of %2$d gunas</string>
+    <string name="matching_pdf">Share PDF</string>
+    <string name="muhurta_title">Muhurta finder</string>
+    <string name="muhurta_subtitle">Find auspicious times for an important beginning.</string>
+    <string name="muhurta_event">Occasion</string>
+    <string name="muhurta_place">Where will it happen?</string>
+    <string name="muhurta_personal">Match with %1$s\'s chart</string>
+    <string name="muhurta_find">Find muhurtas</string>
+    <string name="muhurta_none">No good windows in these dates. Try a wider range.</string>
+    <string name="ev_marriage">Marriage</string>
+    <string name="ev_griha_pravesam">Griha pravesam</string>
+    <string name="ev_vehicle">New vehicle</string>
+    <string name="ev_business">New business</string>
+    <string name="ev_travel">Travel</string>
+    <string name="ev_naming">Naming ceremony</string>
+    <string name="rectify_title">Birth-time helper</string>
+    <string name="rectify_subtitle">Tell us a few big life events of %1$s and we will suggest the most likely birth time.</string>
+    <string name="rectify_add_event">Add a life event</string>
+    <string name="rectify_hint">Add at least two events with dates. More events give better results.</string>
+    <string name="rectify_run">Find my birth time</string>
+    <string name="rectify_none">We couldn\'t narrow it down. Try adding more events.</string>
+    <string name="rectify_use">Use this time</string>
+    <string name="rectify_applied">Birth time updated to %1$s</string>
+    <string name="le_marriage">Marriage</string>
+    <string name="le_child_birth">Birth of a child</string>
+    <string name="le_job_start">First job</string>
+    <string name="le_relocation">Moved home or city</string>
+    <string name="le_parent_death">Loss of a parent</string>
+    <string name="le_accident">Accident or surgery</string>
+    <string name="le_graduation">Completed studies</string>
+
+    <!-- Ask / chat / voice -->
+    <string name="ask_title">Ask the astrologer</string>
+    <string name="ask_intro">Ask about career, marriage, health, money or family. Answers are based on the chart and given in your language.</string>
+    <string name="ask_new">New question</string>
+    <string name="ask_type">Type</string>
+    <string name="ask_speak">Speak</string>
+    <string name="ask_history">Past conversations</string>
+    <string name="ask_history_empty">Your conversations will appear here.</string>
+    <string name="price_per_question">%1$s per question</string>
+    <string name="questions_count">%1$d questions</string>
+    <string name="session_no_summary">Conversation</string>
+    <string name="chat_title">Astrologer</string>
+    <string name="chat_about">About:</string>
+    <string name="chat_empty_title">What would you like to know?</string>
+    <string name="chat_empty_body">Ask in your own words. You can also tap the microphone and speak.</string>
+    <string name="chat_first_free">Your first question is free</string>
+    <string name="chat_hint">Type your question…</string>
+    <string name="chat_price_line">%1$s per answered question · Balance %2$s</string>
+    <string name="chat_thinking">Studying the chart…</string>
+    <string name="chat_charged">%1$s charged</string>
+    <string name="chat_no_charge">No charge</string>
+    <string name="suggest_career">When will my career improve?</string>
+    <string name="suggest_marriage">When is a good time for marriage?</string>
+    <string name="suggest_health">What should I take care of for my health?</string>
+    <string name="suggest_year">How will this year be for me?</string>
+    <string name="voice_listening">Listening…</string>
+    <string name="voice_thinking">Thinking…</string>
+    <string name="voice_speaking">Speaking… tap to stop</string>
+    <string name="voice_tap_to_speak">Tap the microphone and speak</string>
+    <string name="voice_cloud_note">Your phone has no voice pack for this language, so speech is handled by our server.</string>
+    <string name="voice_hands_free">Keep listening</string>
+
+    <!-- Wallet -->
+    <string name="wallet_title">Wallet</string>
+    <string name="wallet_balance">Balance</string>
+    <string name="wallet_balance_is">Current balance: %1$s</string>
+    <string name="wallet_history">History</string>
+    <string name="wallet_history_empty">No transactions yet.</string>
+    <string name="topup_title">Add money</string>
+    <string name="topup_questions">About %1$d questions</string>
+    <string name="topup_reason_question">Add money to your wallet to get this answer.</string>
+    <string name="topup_reason_report">The life report costs %1$s. Add money to your wallet to continue.</string>
+    <string name="topup_reason_pro">The Pro plan costs %1$s. Add money to your wallet to continue.</string>
+    <string name="topup_pending">Payment is pending. Your wallet will be updated as soon as it completes.</string>
+    <string name="topup_failed">The payment didn\'t go through. No money was taken.</string>
+    <string name="topup_done">Money added to your wallet.</string>
+    <string name="topup_unavailable">Google Play payments are not available on this device right now.</string>
+    <string name="topup_restore">Check for a missing payment</string>
+    <string name="lt_topup">Money added</string>
+    <string name="lt_query">Question answered</string>
+    <string name="lt_report">Life report</string>
+    <string name="lt_refund">Refund</string>
+    <string name="lt_trial">Welcome gift</string>
+    <string name="lt_subscription">Pro plan</string>
+    <string name="lt_adjust">Adjustment</string>
+
+    <!-- Report -->
+    <string name="report_title">Life report</string>
+    <string name="report_headline">Your complete life report</string>
+    <string name="report_pitch">About one lakh words across 18 chapters: childhood, education, career, marriage, children, health, wealth and the decades ahead.</string>
+    <string name="report_for">Report for</string>
+    <string name="report_teaser_title">Free sample chapter</string>
+    <string name="report_teaser_cta">Read a free chapter</string>
+    <string name="report_chapters_count">The full report has %1$d chapters:</string>
+    <string name="report_branded">Add my brand to the report</string>
+    <string name="report_buy">Get the full report · %1$s</string>
+    <string name="report_buy_short">Buy</string>
+    <string name="report_confirm_title">Buy the life report?</string>
+    <string name="report_confirm_body">%2$s will be taken from your wallet for %1$s\'s complete life report.</string>
+    <string name="report_mine">My reports</string>
+    <string name="report_none">You haven\'t bought a report yet.</string>
+    <string name="report_generating">Writing your report: %1$d of %2$d chapters ready</string>
+    <string name="report_notify_note">We will notify you when it is ready. You can close the app.</string>
+    <string name="report_failed">Report stopped at %1$d of %2$d chapters.</string>
+    <string name="report_resume">Finish report</string>
+    <string name="report_ready">Ready</string>
+    <string name="report_read">Read</string>
+    <string name="report_toc">Chapters</string>
+    <string name="report_pdf">Open PDF</string>
+    <string name="report_share">Share PDF</string>
+
+    <!-- Astrologer -->
+    <string name="clients_title">Clients</string>
+    <string name="clients_search">Search by name, place or notes</string>
+    <string name="clients_empty">No clients yet. Add your first client.</string>
+    <string name="clients_no_match">No client matches your search.</string>
+    <string name="client_add">Add client</string>
+    <string name="client_add_title">New client</string>
+    <string name="client_title">Client</string>
+    <string name="brand_title">Brand settings</string>
+    <string name="brand_subtitle">Shown on reports and matching PDFs you share with clients.</string>
+    <string name="brand_name">Display name</string>
+    <string name="brand_phone">Phone</string>
+    <string name="brand_logo">Logo link</string>
+    <string name="brand_footer">Footer text</string>
+
+    <!-- More / settings -->
+    <string name="settings_prefs">Preferences</string>
+    <string name="settings_large_text">Large text</string>
+    <string name="settings_large_text_desc">Bigger letters, easier to read</string>
+    <string name="settings_help">Help</string>
+    <string name="settings_legal">Legal</string>
+    <string name="settings_privacy">Privacy and data</string>
+    <string name="logout">Sign out</string>
+    <string name="logout_confirm">Sign out of Udhyath on this phone?</string>
+
+    <!-- Notifications -->
+    <string name="notif_title">Notifications</string>
+    <string name="notif_daily">Daily panchanga</string>
+    <string name="notif_daily_desc">Every morning: the day\'s panchanga and your forecast</string>
+    <string name="notif_transits">Transit alerts</string>
+    <string name="notif_transits_desc">Sade Sati, dasha changes and eclipses</string>
+    <string name="notif_promos">Offers</string>
+    <string name="notif_promos_desc">Occasional festival offers</string>
+    <string name="notif_blocked">Notifications are turned off for Udhyath on this phone.</string>
+    <string name="notif_open_settings">Open settings</string>
+    <string name="notif_perm_title">Get your daily panchanga?</string>
+    <string name="notif_perm_body">Allow notifications for the daily forecast, transit alerts and when your report is ready.</string>
+    <string name="notif_report_ready_title">Your life report is ready</string>
+    <string name="notif_report_ready_body">Tap to start reading.</string>
+    <string name="channel_daily">Daily panchanga</string>
+    <string name="channel_transits">Transit alerts</string>
+    <string name="channel_reports">Reports</string>
+    <string name="channel_account">Wallet and support</string>
+
+    <!-- Refunds -->
+    <string name="refunds_title">Refunds</string>
+    <string name="refund_request">Request refund</string>
+    <string name="refund_intro">Not happy with an answer or a report? Tell us why and our team will review it.</string>
+    <string name="refund_ref">Reference</string>
+    <string name="refund_reason">What went wrong?</string>
+    <string name="refund_sent">Request sent. We usually reply within 2 working days.</string>
+    <string name="refunds_mine">My requests</string>
+    <string name="refunds_none">No refund requests.</string>
+    <string name="refund_requested">Under review</string>
+    <string name="refund_approved">Approved</string>
+    <string name="refund_rejected">Declined</string>
+
+    <!-- Support -->
+    <string name="support_title">Help and support</string>
+    <string name="support_new">Write to us</string>
+    <string name="support_message">Describe the problem</string>
+    <string name="support_sent">Thank you. We have received your message.</string>
+    <string name="support_whatsapp">Chat with us on WhatsApp</string>
+    <string name="support_whatsapp_text">Hello Udhyath team, I need help. My account id: %1$s</string>
+    <string name="support_mine">My tickets</string>
+    <string name="support_none">No tickets yet.</string>
+    <string name="support_open">Open</string>
+    <string name="support_resolved">Resolved</string>
+    <string name="sc_payment">Payment</string>
+    <string name="sc_report">Report</string>
+    <string name="sc_answer">Answer</string>
+    <string name="sc_app">App problem</string>
+    <string name="sc_account">Account</string>
+    <string name="sc_other">Other</string>
+
+    <!-- Account data -->
+    <string name="account_export">Download my data</string>
+    <string name="account_export_desc">Get a copy of your profiles, questions, reports and wallet history as a file.</string>
+    <string name="account_export_cta">Save my data</string>
+    <string name="export_saved">Your data file has been saved.</string>
+    <string name="account_delete">Delete account</string>
+    <string name="account_delete_desc">Your account is closed immediately and all data is permanently erased after 30 days. Any wallet balance is lost.</string>
+    <string name="account_delete_body">This will close your account. Your profiles, conversations and reports will be permanently erased after 30 days. Any remaining wallet balance cannot be recovered.</string>
+    <string name="account_delete_understand">I understand, delete my account</string>
+    <string name="action_change">Change</string>
+</resources>

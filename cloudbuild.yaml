@@ -1,0 +1,56 @@
+# Build -> push -> deploy the Udhyath API to Cloud Run.
+#
+#   gcloud builds submit --config cloudbuild.yaml \
+#     --region=asia-south1 \
+#     --service-account=projects/$PROJECT_ID/serviceAccounts/udhyath-build@$PROJECT_ID.iam.gserviceaccount.com \
+#     --substitutions=SHORT_SHA=$(git rev-parse --short HEAD)
+#
+# (A Cloud Build trigger on the main branch fills SHORT_SHA automatically.)
+# Only the image changes here; env vars, secrets, scaling and the service
+# account are owned by terraform (deploy/gcp/terraform).
+
+substitutions:
+  _REGION: asia-south1
+  _REPO: udhyath
+  _SERVICE: udhyath-api
+  _IMAGE: ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/api
+
+steps:
+  - id: build
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --pull
+      - --cache-from=${_IMAGE}:latest
+      - -t=${_IMAGE}:${SHORT_SHA}
+      - -t=${_IMAGE}:latest
+      - -f=Dockerfile
+      - .
+
+  - id: push
+    name: gcr.io/cloud-builders/docker
+    args: [push, --all-tags, "${_IMAGE}"]
+
+  - id: deploy
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image=${_IMAGE}:${SHORT_SHA}
+      - --region=${_REGION}
+      - --quiet
+
+images:
+  - ${_IMAGE}:${SHORT_SHA}
+  - ${_IMAGE}:latest
+
+options:
+  # _IMAGE is composed from _REGION/_REPO/PROJECT_ID, which needs dynamic
+  # substitution (otherwise _REPO counts as unused and the build is rejected).
+  dynamicSubstitutions: true
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_HIGHCPU_8
+
+timeout: 1800s

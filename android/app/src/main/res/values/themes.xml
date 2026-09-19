@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.Udhyath" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:statusBarColor">#7B1FA2</item>
-        <item name="android:windowLightStatusBar">false</item>
+    <!-- AppCompat parent is required for AppCompatDelegate per-app locales. -->
+    <style name="Theme.Udhyath" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="android:windowBackground">@color/cream</item>
+        <item name="colorPrimary">@color/saffron</item>
+        <item name="colorAccent">@color/maroon</item>
     </style>
 </resources>

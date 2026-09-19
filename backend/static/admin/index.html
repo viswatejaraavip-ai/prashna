@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Udhyath Operations</title>
+<link rel="icon" type="image/svg+xml" href="/admin/assets/favicon.svg">
+<link rel="stylesheet" href="/admin/assets/admin.css">
+</head>
+<body>
+
+<section id="login" class="login" hidden>
+  <div class="card">
+    <img src="/admin/assets/favicon.svg" alt="">
+    <h2>Udhyath Operations</h2>
+    <p class="muted">Sign in with an operator Google account.</p>
+    <button id="google-btn">Sign in with Google</button>
+    <p id="login-err" class="err-text small"></p>
+    <details id="dev-token">
+      <summary>Use an admin token (local development)</summary>
+      <p class="small muted">Paste the token printed by <span class="mono">backend/scripts/seed_admin_demo.py</span>.</p>
+      <input id="token-input" class="mono" placeholder="eyJ..." style="width:100%">
+      <p><button id="token-btn" class="secondary">Use token</button></p>
+    </details>
+  </div>
+</section>
+
+<div id="shell" hidden>
+  <header class="top">
+    <a class="brand" href="#/overview"><img src="/admin/assets/favicon.svg" alt="">Udhyath <small>Operations</small></a>
+    <nav class="tabs" id="tabs">
+      <a href="#/overview" data-page="overview">Overview</a>
+      <a href="#/cost" data-page="cost">Cost watch</a>
+      <a href="#/traces" data-page="traces">Traces</a>
+      <a href="#/users" data-page="users">Users</a>
+      <a href="#/errors" data-page="errors">Errors</a>
+      <a href="#/refunds" data-page="refunds">Refunds</a>
+      <a href="#/support" data-page="support">Support</a>
+      <a href="#/flags" data-page="flags">Flags</a>
+      <a href="#/audit" data-page="audit">Audit</a>
+    </nav>
+    <div class="who"><span id="who"></span><button id="logout-btn" class="secondary">Sign out</button></div>
+  </header>
+  <main>
+    <div id="banner"></div>
+    <div id="page"><div class="spinner">Loading…</div></div>
+  </main>
+</div>
+
+<dialog id="confirm">
+  <h3 id="confirm-title">Confirm</h3>
+  <div id="confirm-body"></div>
+  <p class="row-actions" style="justify-content:flex-end">
+    <button class="secondary" id="confirm-cancel">Cancel</button>
+    <button id="confirm-ok">Confirm</button>
+  </p>
+</dialog>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="/admin/assets/admin.js"></script>
+</body>
+</html>

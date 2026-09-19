@@ -3,474 +3,426 @@ package com.udhyath.app
 import android.Manifest
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
-import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.filled.AutoStories
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavHostController
+import androidx.navigation.NavType
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import androidx.navigation.navDeepLink
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-// Udhyath palette — matches the website's vibrant Indian styling.
-private val Saffron = Color(0xFFFF9933)
-private val DeepPurple = Color(0xFF4A148C)
-private val Maroon = Color(0xFF900C3F)
-private val Cream = Color(0xFFFFF8E7)
+class MainActivity : AppCompatActivity() {
+    /** Deep link waiting for the nav graph (push tap, udhyath:// link). */
+    private val pendingLink = MutableStateFlow<Uri?>(null)
 
-data class ChatMessage(val role: String, val content: String, val charge: Double = 0.0)
-
-class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        Notifications.createChannels(this) // localized channel names after a language switch
+        pendingLink.value = linkFrom(intent)
+        // We route deep links ourselves (after onboarding); stop NavHost from also handling this intent.
+        intent?.data = null
+        syncLocale()
         setContent {
-            MaterialTheme(
-                colorScheme = lightColorScheme(
-                    primary = DeepPurple, secondary = Saffron,
-                    background = Cream, surface = Color.White,
-                )
-            ) { UdhyathApp() }
+            val g = LocalContext.current.graph
+            val settings by g.settings.settings.collectAsStateWithLifecycle(initialValue = null)
+            val s = settings
+            UdhyathTheme(largeText = s?.largeText == true, dark = isSystemInDarkTheme()) {
+                Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                    if (s != null) AppRoot(s, pendingLink)
+                }
+            }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        linkFrom(intent)?.let { pendingLink.value = it }
+        intent.data = null
+    }
+
+    private fun linkFrom(i: Intent?): Uri? {
+        if (i == null) return null
+        i.data?.takeIf { it.scheme == "udhyath" }?.let { return it }
+        // FCM notification messages delivered in background: data keys arrive as extras.
+        val extras = i.extras ?: return null
+        val map = extras.keySet().associateWith { extras.get(it)?.toString() }
+        return Notifications.deepLinkFor(map)
+    }
+
+    /**
+     * Keep DataStore, AppCompat locale and the backend in agreement — e.g. if
+     * the user changed the app language from Android's system settings (13+).
+     */
+    private fun syncLocale() {
+        val g = graph
+        g.scope.launch {
+            val saved = g.settings.current().lang
+            val active = LocaleController.current()
+            when {
+                saved != null && active == null -> LocaleController.apply(saved)
+                active != null && active != saved -> {
+                    g.settings.setLang(active)
+                    g.langCode = active.code
+                    if (g.account.signedIn) runCatching { g.api.patchMe(lang = active.code) }
+                }
+            }
         }
     }
 }
 
-private fun prefs(context: Context) =
-    context.getSharedPreferences("udhyath", Context.MODE_PRIVATE)
+// ---------------------------------------------------------------------------
+// Connectivity for the offline banner
+// ---------------------------------------------------------------------------
 
 @Composable
-fun UdhyathApp() {
-    val context = LocalContext.current
-    var token by remember { mutableStateOf(prefs(context).getString("token", null)) }
-    Api.token = token
-    var tab by remember { mutableStateOf(0) }  // 0 = Charts (free), 1 = Agent
+fun rememberOnline(): State<Boolean> {
+    val ctx = LocalContext.current
+    val online = remember { mutableStateOf(true) }
+    DisposableEffect(Unit) {
+        val cm = ctx.getSystemService(ConnectivityManager::class.java)
+        fun check() = cm?.getNetworkCapabilities(cm.activeNetwork)?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+        online.value = check()
+        val cb = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) { online.value = true }
+            override fun onLost(network: Network) { online.value = check() }
+        }
+        runCatching { cm?.registerNetworkCallback(NetworkRequest.Builder().addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET).build(), cb) }
+        onDispose { runCatching { cm?.unregisterNetworkCallback(cb) } }
+    }
+    return online
+}
+
+@Composable
+fun OfflineBanner() {
+    val online by rememberOnline()
+    AnimatedVisibility(!online) {
+        Text(stringResource(R.string.offline_banner),
+            Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.secondary).statusBarsPadding().padding(8.dp),
+            color = MaterialTheme.colorScheme.onSecondary, textAlign = TextAlign.Center,
+            style = MaterialTheme.typography.labelLarge)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Root: onboarding gate → main app
+// ---------------------------------------------------------------------------
+
+@Composable
+fun AppRoot(s: AppSettings, pendingLink: MutableStateFlow<Uri?>) {
+    val g = LocalContext.current.graph
+    val scope = rememberCoroutineScope()
+    val maintenance by AppEvents.maintenance.collectAsStateWithLifecycle()
+    val expired by AppEvents.sessionExpired.collectAsStateWithLifecycle()
+    var signedIn by remember { mutableStateOf(g.account.signedIn) }
+    val user by g.account.user.collectAsStateWithLifecycle()
+    val profilesLoaded by g.account.loaded.collectAsStateWithLifecycle()
+    val profiles by g.account.profiles.collectAsStateWithLifecycle()
+    var bootError by remember { mutableStateOf<Throwable?>(null) }
+    var bootTick by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(expired) {
+        if (expired) { g.account.signOut(); signedIn = false; AppEvents.sessionExpired.value = false }
+    }
+
+    // Load the signed-in user + profiles once per sign-in.
+    LaunchedEffect(signedIn, bootTick) {
+        if (!signedIn) return@LaunchedEffect
+        bootError = null
+        runCatching {
+            val u = g.account.refreshMe()
+            if (u.disclaimer_accepted_at != null) { g.settings.setDisclaimerAccepted(true); g.settings.setRoleChosen(true) }
+            // Keep the server's language in step with the device choice.
+            if (s.lang != null && u.lang != s.lang.code) runCatching { g.api.patchMe(lang = s.lang.code) }
+            g.account.refreshProfiles()
+            g.account.syncFcmToken()
+            runCatching { g.billing.restore() }
+        }.onFailure { bootError = it }
+    }
+
+    Column(Modifier.fillMaxSize()) {
+        OfflineBanner()
+        Box(Modifier.weight(1f)) {
+            when {
+                maintenance != null -> MaintenanceScreen(maintenance!!) {
+                    scope.launch { runCatching { g.api.pricing() }.onSuccess { AppEvents.maintenance.value = null } }
+                }
+                s.lang == null -> LanguagePickerScreen(firstRun = true, current = null) { lang -> chooseLanguage(g, lang, scope) }
+                !signedIn -> AuthScreen(onSignedIn = { signedIn = true })
+                user == null || !profilesLoaded -> {
+                    val err = bootError
+                    if (err != null) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        ErrorBox(err, onRetry = { bootTick++ })
+                    } else Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { SplashMark() }
+                }
+                !s.roleChosen -> RoleScreen()
+                !s.disclaimerAccepted -> DisclaimerScreen()
+                user?.isAstrologer != true && profiles.none { it.relation != "client" } ->
+                    ProfileEditScreen(pid = null, onboarding = true, onDone = {}, onBack = null)
+                user?.isAstrologer != true && !s.snapshotSeen -> {
+                    val pid = s.activeProfileId ?: profiles.first().id
+                    SnapshotScreen(pid, onContinue = { askFirst ->
+                        if (askFirst) pendingLink.value = Uri.parse("udhyath://chat?pid=$pid")
+                        scope.launch { g.settings.setSnapshotSeen(true) }
+                    })
+                }
+                else -> MainScaffold(s, user!!, pendingLink)
+            }
+        }
+    }
+}
+
+fun chooseLanguage(g: AppGraph, lang: AppLang, scope: kotlinx.coroutines.CoroutineScope) {
+    scope.launch {
+        g.settings.setLang(lang)
+        g.langCode = lang.code
+        if (g.account.signedIn) runCatching { g.account.setUser(g.api.patchMe(lang = lang.code)) }
+        LocaleController.apply(lang) // recreates the activity in the new language
+    }
+}
+
+@Composable
+fun SplashMark() {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Icon(painterResource(R.drawable.ic_diya), contentDescription = stringResource(R.string.app_name),
+            tint = androidx.compose.ui.graphics.Color.Unspecified, modifier = Modifier.size(96.dp))
+        Spacer(Modifier.height(16.dp))
+        CircularProgressIndicator()
+    }
+}
+
+@Composable
+fun MaintenanceScreen(message: String, onRetry: () -> Unit) {
+    Column(Modifier.fillMaxSize().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center) {
+        Icon(painterResource(R.drawable.ic_diya), contentDescription = null,
+            tint = androidx.compose.ui.graphics.Color.Unspecified, modifier = Modifier.size(96.dp))
+        Spacer(Modifier.height(16.dp))
+        Text(stringResource(R.string.maintenance_title), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
+        Spacer(Modifier.height(8.dp))
+        Text(message.ifBlank { stringResource(R.string.maintenance_default) }, textAlign = TextAlign.Center)
+        Spacer(Modifier.height(24.dp))
+        OutlinedButton(onClick = onRetry) { Text(stringResource(R.string.retry)) }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Main app with bottom navigation
+// ---------------------------------------------------------------------------
+
+object Routes {
+    const val HOME = "home"
+    const val ASK = "ask"
+    const val CHAT = "chat?sid={sid}&pid={pid}&voice={voice}"
+    fun chat(sid: String? = null, pid: String? = null, voice: Boolean = false) =
+        "chat?sid=${sid.orEmpty()}&pid=${pid.orEmpty()}&voice=$voice"
+    const val CHARTS = "charts?pid={pid}"
+    fun charts(pid: String? = null) = "charts?pid=${pid.orEmpty()}"
+    const val PROFILES = "profiles"
+    const val PROFILE_EDIT = "profile_edit?pid={pid}&relation={relation}"
+    fun profileEdit(pid: String? = null, relation: String? = null) = "profile_edit?pid=${pid.orEmpty()}&relation=${relation.orEmpty()}"
+    const val ALERTS = "alerts/{pid}"
+    const val MATCHING = "matching"
+    const val MUHURTA = "muhurta"
+    const val RECTIFY = "rectify/{pid}"
+    const val REPORTS = "reports?pid={pid}"
+    fun reports(pid: String? = null) = "reports?pid=${pid.orEmpty()}"
+    const val REPORT = "report/{id}"
+    const val WALLET = "wallet"
+    const val MORE = "more"
+    const val LANGUAGE = "language"
+    const val NOTIF = "notif_prefs"
+    const val LEGAL = "legal/{doc}"
+    const val REFUNDS = "refunds?ref={ref}"
+    fun refunds(ref: String? = null) = "refunds?ref=${ref.orEmpty()}"
+    const val SUPPORT = "support"
+    const val ACCOUNT = "account"
+    const val CLIENTS = "clients"
+    const val CLIENT = "client/{pid}"
+    const val PRO_BUNDLE = "pro_bundle/{pid}"
+    const val BRAND = "brand"
+    const val PRO = "pro"
+}
+
+private data class Tab(val route: String, val label: Int, val icon: ImageVector)
+
+@Composable
+fun MainScaffold(s: AppSettings, user: User, pendingLink: MutableStateFlow<Uri?>) {
+    val nav = rememberNavController()
+    val g = LocalContext.current.graph
+    val astro = user.isAstrologer
+    val tabs = if (astro) listOf(
+        Tab(Routes.CLIENTS, R.string.tab_clients, Icons.Default.Groups),
+        Tab(Routes.ASK, R.string.tab_ask, Icons.AutoMirrored.Filled.Chat),
+        Tab(Routes.reports(), R.string.tab_reports, Icons.Default.AutoStories),
+        Tab(Routes.MORE, R.string.tab_more, Icons.Default.Menu),
+    ) else listOf(
+        Tab(Routes.HOME, R.string.tab_home, Icons.Default.Home),
+        Tab(Routes.ASK, R.string.tab_ask, Icons.AutoMirrored.Filled.Chat),
+        Tab(Routes.charts(), R.string.tab_charts, Icons.Default.WbSunny),
+        Tab(Routes.reports(), R.string.tab_reports, Icons.Default.AutoStories),
+        Tab(Routes.MORE, R.string.tab_more, Icons.Default.Menu),
+    )
+    val backStack by nav.currentBackStackEntryAsState()
+    val current = backStack?.destination?.route
+    val showBar = tabs.any { it.route.substringBefore('?') == current?.substringBefore('?') }
+
+    // Deep links from pushes / udhyath:// URIs.
+    val link by pendingLink.collectAsStateWithLifecycle()
+    LaunchedEffect(link, nav) {
+        val l = link ?: return@LaunchedEffect
+        pendingLink.value = null
+        runCatching { nav.navigate(l) }
+    }
+
+    NotificationPermissionAsk(s)
 
     Scaffold(
         bottomBar = {
-            NavigationBar(containerColor = DeepPurple) {
-                NavigationBarItem(selected = tab == 0, onClick = { tab = 0 },
-                    icon = { Text("🕉", fontSize = 20.sp) },
-                    label = { Text("Free Charts") },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedTextColor = Saffron, unselectedTextColor = Color(0xFFD1C4E9),
-                        indicatorColor = Maroon))
-                NavigationBarItem(selected = tab == 1, onClick = { tab = 1 },
-                    icon = { Text("🤖", fontSize = 20.sp) },
-                    label = { Text("Astrologer") },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedTextColor = Saffron, unselectedTextColor = Color(0xFFD1C4E9),
-                        indicatorColor = Maroon))
-                NavigationBarItem(selected = tab == 2, onClick = { tab = 2 },
-                    icon = { Text("📜", fontSize = 20.sp) },
-                    label = { Text("Report") },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedTextColor = Saffron, unselectedTextColor = Color(0xFFD1C4E9),
-                        indicatorColor = Maroon))
-            }
-        }
-    ) { padding ->
-        Box(Modifier.padding(padding).fillMaxSize()) {
-            if (tab == 0) {
-                Column(Modifier.fillMaxSize()) {
-                    ChartsHeader()
-                    ChartsScreen()
+            if (showBar) NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
+                tabs.forEach { t ->
+                    val selected = current?.substringBefore('?') == t.route.substringBefore('?')
+                    NavigationBarItem(
+                        selected = selected,
+                        onClick = {
+                            nav.navigate(t.route) {
+                                popUpTo(nav.graph.startDestinationId) { saveState = true }
+                                launchSingleTop = true; restoreState = true
+                            }
+                        },
+                        icon = { Icon(t.icon, contentDescription = null) },
+                        label = { Text(stringResource(t.label), maxLines = 1) },
+                    )
                 }
-            } else if (tab == 2) {
-                ReportScreen(loggedIn = token != null, onNeedLogin = { tab = 1 })
-            } else if (token == null) {
-                AuthScreen(onAuthed = { newToken ->
-                    prefs(context).edit().putString("token", newToken).apply()
-                    Api.token = newToken
-                    token = newToken
-                })
-            } else {
-                ChatScreen(onLogout = {
-                    prefs(context).edit().remove("token").apply()
-                    Api.token = null
-                    token = null
-                })
             }
+        },
+        contentWindowInsets = WindowInsets(0),
+    ) { pad ->
+        Box(Modifier.padding(pad)) {
+            AppNavHost(nav, if (astro) Routes.CLIENTS else Routes.HOME, s, user)
         }
     }
 }
 
 @Composable
-fun ChartsHeader() {
-    Row(
-        Modifier.fillMaxWidth().background(DeepPurple).padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text("🪔 Udhyath", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 19.sp)
-        Spacer(Modifier.weight(1f))
-        Text("Vedic charts · FREE", color = Saffron, fontSize = 13.sp)
-    }
-}
-
-@Composable
-fun AuthScreen(onAuthed: (String) -> Unit) {
+fun NotificationPermissionAsk(s: AppSettings) {
+    if (Build.VERSION.SDK_INT < 33 || s.notifAsked) return
+    val ctx = LocalContext.current
+    val g = ctx.graph
     val scope = rememberCoroutineScope()
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var otp by remember { mutableStateOf("") }
-    var otpPending by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<String?>(null) }
-    var info by remember { mutableStateOf<String?>(null) }
-    var busy by remember { mutableStateOf(false) }
-
-    fun run(block: suspend () -> Unit) {
-        error = null; info = null; busy = true
-        scope.launch {
-            try { block() } catch (e: ApiException) {
-                if (e.detail.startsWith("verify_email")) {
-                    otpPending = true
-                    info = "Enter the 6-digit code we emailed you."
-                } else error = e.detail
-            } catch (e: Exception) {
-                error = e.message ?: "Network error"
-            } finally { busy = false }
-        }
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+        scope.launch { g.settings.setNotifAsked(true) }
     }
-
-    Column(
-        Modifier.fillMaxSize().background(Cream).imePadding()
-            .verticalScroll(androidx.compose.foundation.rememberScrollState())
-            .padding(28.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Text("🪔", fontSize = 56.sp)
-        Text("Udhyath", fontSize = 34.sp, fontWeight = FontWeight.Bold, color = Maroon)
-        Text("Vedic astrology, spoken in your language",
-             color = DeepPurple, textAlign = TextAlign.Center)
-        Spacer(Modifier.height(28.dp))
-
-        if (!otpPending) {
-            OutlinedTextField(email, { email = it.trim() }, label = { Text("Email") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                singleLine = true, modifier = Modifier.fillMaxWidth())
-            Spacer(Modifier.height(10.dp))
-            OutlinedTextField(password, { password = it }, label = { Text("Password (8+ chars)") },
-                visualTransformation = PasswordVisualTransformation(),
-                singleLine = true, modifier = Modifier.fillMaxWidth())
-            Spacer(Modifier.height(18.dp))
-            Button(
-                onClick = { run { onAuthed(Api.login(email, password).getString("token")) } },
-                enabled = !busy && email.isNotBlank() && password.isNotBlank(),
-                colors = ButtonDefaults.buttonColors(containerColor = Maroon),
-                modifier = Modifier.fillMaxWidth().height(48.dp),
-            ) { Text(if (busy) "Please wait…" else "Sign in") }
-            Spacer(Modifier.height(8.dp))
-            OutlinedButton(
-                onClick = { run {
-                    val r = Api.register(email, password)
-                    if (r.optBoolean("pending_verification")) {
-                        otpPending = true
-                        info = "Enter the 6-digit code we emailed you."
-                    }
-                } },
-                enabled = !busy && email.isNotBlank() && password.length >= 8,
-                modifier = Modifier.fillMaxWidth().height(48.dp),
-            ) { Text("Create account") }
-        } else {
-            Text("Verifying $email", fontWeight = FontWeight.SemiBold, color = DeepPurple)
-            Spacer(Modifier.height(10.dp))
-            OutlinedTextField(otp, { otp = it.filter(Char::isDigit).take(6) },
-                label = { Text("6-digit code") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                singleLine = true, modifier = Modifier.fillMaxWidth())
-            Spacer(Modifier.height(18.dp))
-            Button(
-                onClick = { run { onAuthed(Api.verifyOtp(email, otp).getString("token")) } },
-                enabled = !busy && otp.length == 6,
-                colors = ButtonDefaults.buttonColors(containerColor = Maroon),
-                modifier = Modifier.fillMaxWidth().height(48.dp),
-            ) { Text(if (busy) "Please wait…" else "Verify") }
-            Spacer(Modifier.height(8.dp))
-            TextButton(onClick = { run { Api.resendOtp(email); info = "Code re-sent." } }) {
-                Text("Resend code")
-            }
-            TextButton(onClick = { otpPending = false; otp = "" }) { Text("Back") }
-        }
-
-        info?.let { Spacer(Modifier.height(12.dp)); Text(it, color = DeepPurple) }
-        error?.let {
-            Spacer(Modifier.height(12.dp))
-            Text(it, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun ChatScreen(onLogout: () -> Unit) {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val listState = rememberLazyListState()
-
-    var language by remember {
-        mutableStateOf(LANGUAGES.first {
-            it.tag == (prefs(context).getString("lang", "te-IN") ?: "te-IN")
-        })
-    }
-    var langMenu by remember { mutableStateOf(false) }
-    var balance by remember { mutableStateOf<Double?>(null) }
-    var sessionId by remember { mutableStateOf<String?>(null) }
-    val messages = remember { mutableStateListOf<ChatMessage>() }
-    var input by remember { mutableStateOf("") }
-    var busy by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<String?>(null) }
-    var topupNeeded by remember { mutableStateOf(false) }
-    var voiceState by remember { mutableStateOf(VoiceState.IDLE) }
-    var liveMode by remember { mutableStateOf(false) }
-    var speakReplies by remember { mutableStateOf(true) }
-    var trialBanner by remember { mutableStateOf<String?>(null) }
-
-    // Set after VoiceManager exists — recognizer results must reach sendText.
-    var onRecognized by remember { mutableStateOf<(String) -> Unit>({}) }
-    val voice = remember {
-        VoiceManager(context,
-            onResult = { text -> onRecognized(text) },
-            onState = { voiceState = it },
-            onError = { error = it })
-    }
-    DisposableEffect(Unit) { onDispose { voice.destroy() } }
-
-    val micPermission = androidx.activity.compose.rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted -> if (granted) voice.startListening(language.tag) }
-
-    fun listen() {
-        if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
-            == PackageManager.PERMISSION_GRANTED) voice.startListening(language.tag)
-        else micPermission.launch(Manifest.permission.RECORD_AUDIO)
-    }
-
-    voice.onSpeechDone = { if (liveMode) listen() }
-
-    LaunchedEffect(Unit) {
-        try { balance = Api.me().getDouble("balance") }
-        catch (e: ApiException) { if (e.code == 401) onLogout() }
-        catch (_: Exception) {}
-        // First launch on this install: try to claim the one-per-device trial.
-        if (!prefs(context).getBoolean("trial_checked", false)) {
-            try {
-                val deviceId = android.provider.Settings.Secure.getString(
-                    context.contentResolver,
-                    android.provider.Settings.Secure.ANDROID_ID) ?: return@LaunchedEffect
-                val r = Api.claimTrial(deviceId)
-                prefs(context).edit().putBoolean("trial_checked", true).apply()
-                if (r.optBoolean("granted")) {
-                    balance = r.optDouble("balance", balance ?: 0.0)
-                    trialBanner = "🎁 Welcome! Your first question is free — " +
-                                  "just share your birth details and ask."
-                }
-            } catch (_: Exception) { /* retry next launch */ }
-        }
-    }
-    LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) listState.animateScrollToItem(messages.size - 1)
-    }
-
-    fun sendText(text: String) {
-        if (text.isBlank() || busy) return
-        error = null; busy = true
-        messages.add(ChatMessage("user", text))
-        scope.launch {
-            try {
-                val sid = sessionId ?: Api.createSession().getString("session_id")
-                    .also { sessionId = it }
-                val r = Api.sendMessage(sid, text)
-                val reply = r.getString("reply")
-                messages.add(ChatMessage("assistant", reply, r.optDouble("charge", 0.0)))
-                balance = r.optDouble("balance", balance ?: 0.0)
-                if (speakReplies || liveMode) voice.speak(reply, language.tag)
-            } catch (e: ApiException) {
-                if (e.code == 402) topupNeeded = true else error = e.detail
-                liveMode = false
-            } catch (e: Exception) {
-                error = e.message ?: "Network error"; liveMode = false
-            } finally { busy = false }
-        }
-    }
-    onRecognized = { text -> input = ""; sendText(text) }
-
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = DeepPurple, titleContentColor = Color.White),
-                title = {
-                    Column {
-                        Text("🪔 Udhyath", fontWeight = FontWeight.Bold)
-                        Text(balance?.let { "₹%.2f".format(it) } ?: "…",
-                             fontSize = 13.sp, color = Saffron)
-                    }
-                },
-                actions = {
-                    TextButton(onClick = { langMenu = true }) {
-                        Text(language.label, color = Saffron, fontWeight = FontWeight.Bold)
-                    }
-                    DropdownMenu(expanded = langMenu, onDismissRequest = { langMenu = false }) {
-                        LANGUAGES.forEach { lang ->
-                            DropdownMenuItem(text = { Text(lang.label) }, onClick = {
-                                language = lang; langMenu = false
-                                prefs(context).edit().putString("lang", lang.tag).apply()
-                            })
-                        }
-                    }
-                    TextButton(onClick = onLogout) { Text("Logout", color = Color.White) }
-                },
-            )
-        },
-        containerColor = Cream,
-    ) { padding ->
-        Column(Modifier.padding(padding).fillMaxSize().imePadding()) {
-            trialBanner?.let {
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = Saffron),
-                    modifier = Modifier.fillMaxWidth().padding(10.dp),
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(it, Modifier.weight(1f).padding(12.dp),
-                             color = Color(0xFF4A148C), fontWeight = FontWeight.SemiBold)
-                        TextButton(onClick = { trialBanner = null }) { Text("✕") }
-                    }
-                }
-            }
-            LazyColumn(
-                state = listState,
-                modifier = Modifier.weight(1f).fillMaxWidth(),
-                contentPadding = PaddingValues(12.dp),
-            ) {
-                if (messages.isEmpty()) item {
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                        modifier = Modifier.fillMaxWidth().padding(top = 24.dp),
-                    ) {
-                        Text(
-                            "Namaste! 🙏 Share your birth date, exact time and place, " +
-                            "and ask anything — career, marriage, health, timing. " +
-                            "I read your KP, Nadi, bhava, Ashtakavarga and all four " +
-                            "dasha systems together before answering.\n\n" +
-                            "Tap the mic and speak in ${language.label} — I will " +
-                            "reply in your language, with voice.",
-                            Modifier.padding(16.dp), color = DeepPurple)
-                    }
-                }
-                items(messages) { msg -> MessageBubble(msg) }
-                if (busy) item {
-                    Text("The astrologer is consulting your charts…",
-                         Modifier.padding(12.dp), color = Maroon, fontSize = 13.sp)
-                }
-            }
-
-            error?.let {
-                Text(it, Modifier.fillMaxWidth().padding(horizontal = 14.dp),
-                     color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
-            }
-            if (voiceState == VoiceState.LISTENING)
-                Text("🎙 Listening (${language.label})…",
-                     Modifier.fillMaxWidth().padding(4.dp),
-                     textAlign = TextAlign.Center, color = Maroon)
-
-            Row(
-                Modifier.fillMaxWidth().padding(10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                OutlinedTextField(
-                    input, { input = it },
-                    placeholder = { Text("Ask in ${language.label}…") },
-                    modifier = Modifier.weight(1f),
-                    maxLines = 3,
-                )
-                Spacer(Modifier.width(6.dp))
-                FilledIconButton(
-                    onClick = {
-                        if (voiceState == VoiceState.SPEAKING) voice.stopSpeaking() else listen()
-                    },
-                    colors = IconButtonDefaults.filledIconButtonColors(
-                        containerColor = if (voiceState == VoiceState.LISTENING) Maroon else Saffron),
-                    modifier = Modifier.size(48.dp),
-                ) { Text(if (voiceState == VoiceState.SPEAKING) "⏹" else "🎙", fontSize = 20.sp) }
-                Spacer(Modifier.width(6.dp))
-                FilledIconButton(
-                    onClick = { val t = input; input = ""; sendText(t) },
-                    enabled = !busy && input.isNotBlank(),
-                    colors = IconButtonDefaults.filledIconButtonColors(containerColor = DeepPurple),
-                    modifier = Modifier.size(48.dp),
-                ) { Text("➤", color = Color.White, fontSize = 18.sp) }
-            }
-            Row(
-                Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, bottom = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Switch(checked = liveMode, onCheckedChange = { liveMode = it; if (it) listen() })
-                Text("  Live conversation", fontSize = 13.sp, color = DeepPurple)
-                Spacer(Modifier.weight(1f))
-                Switch(checked = speakReplies, onCheckedChange = { speakReplies = it })
-                Text("  Speak replies", fontSize = 13.sp, color = DeepPurple)
-            }
-        }
-    }
-
-    if (topupNeeded) AlertDialog(
-        onDismissRequest = { topupNeeded = false },
-        title = { Text("Balance too low") },
-        text = { Text("Add funds to your Udhyath wallet on the website, " +
-                      "then come back — your balance is shared across web, " +
-                      "API and this app.") },
-        confirmButton = {
-            Button(onClick = {
-                topupNeeded = false
-                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(Api.BASE)))
-            }) { Text("Open website") }
-        },
-        dismissButton = {
-            TextButton(onClick = { topupNeeded = false }) { Text("Later") }
-        },
+    var show by remember { mutableStateOf(ContextCompat.checkSelfPermission(ctx, Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) }
+    if (!show) { LaunchedEffect(Unit) { g.settings.setNotifAsked(true) }; return }
+    AlertDialog(
+        onDismissRequest = { show = false; scope.launch { g.settings.setNotifAsked(true) } },
+        title = { Text(stringResource(R.string.notif_perm_title)) },
+        text = { Text(stringResource(R.string.notif_perm_body)) },
+        confirmButton = { TextButton(onClick = { show = false; launcher.launch(Manifest.permission.POST_NOTIFICATIONS) }) { Text(stringResource(R.string.allow)) } },
+        dismissButton = { TextButton(onClick = { show = false; scope.launch { g.settings.setNotifAsked(true) } }) { Text(stringResource(R.string.not_now)) } },
     )
 }
 
 @Composable
-fun MessageBubble(msg: ChatMessage) {
-    val isUser = msg.role == "user"
-    Row(
-        Modifier.fillMaxWidth().padding(vertical = 4.dp),
-        horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start,
-    ) {
-        Column(
-            Modifier
-                .widthIn(max = 300.dp)
-                .background(
-                    if (isUser) DeepPurple else Color.White,
-                    RoundedCornerShape(
-                        topStart = 14.dp, topEnd = 14.dp,
-                        bottomStart = if (isUser) 14.dp else 2.dp,
-                        bottomEnd = if (isUser) 2.dp else 14.dp))
-                .padding(12.dp)
-        ) {
-            Text(msg.content, color = if (isUser) Color.White else Color(0xFF2D2D2D))
-            if (!isUser && msg.charge > 0)
-                Text("₹%.2f".format(msg.charge), fontSize = 11.sp, color = Maroon)
+fun AppNavHost(nav: NavHostController, start: String, s: AppSettings, user: User) {
+    val back: () -> Unit = { nav.popBackStack() }
+    val optStr = { name: String -> navArgument(name) { type = NavType.StringType; nullable = true; defaultValue = null } }
+    fun String?.orNullIfBlank() = this?.takeIf { it.isNotBlank() }
+
+    NavHost(nav, startDestination = start) {
+        composable(Routes.HOME, deepLinks = listOf(navDeepLink { uriPattern = "udhyath://home" })) {
+            HomeScreen(nav)
         }
+        composable(Routes.ASK) { SessionsScreen(nav) }
+        composable(Routes.CHAT, arguments = listOf(optStr("sid"), optStr("pid"),
+            navArgument("voice") { type = NavType.BoolType; defaultValue = false }),
+            deepLinks = listOf(navDeepLink { uriPattern = "udhyath://chat?pid={pid}" })) { e ->
+            ChatScreen(nav, sid = e.arguments?.getString("sid").orNullIfBlank(),
+                pid = e.arguments?.getString("pid").orNullIfBlank(), startVoice = e.arguments?.getBoolean("voice") == true)
+        }
+        composable(Routes.CHARTS, arguments = listOf(optStr("pid"))) { e ->
+            ChartsScreen(nav, e.arguments?.getString("pid").orNullIfBlank(), showBack = nav.previousBackStackEntry != null && user.isAstrologer)
+        }
+        composable(Routes.PROFILES) { ProfilesScreen(nav) }
+        composable(Routes.PROFILE_EDIT, arguments = listOf(optStr("pid"), optStr("relation"))) { e ->
+            ProfileEditScreen(pid = e.arguments?.getString("pid").orNullIfBlank(), onboarding = false,
+                presetRelation = e.arguments?.getString("relation").orNullIfBlank(),
+                onDone = { back() }, onBack = back)
+        }
+        composable(Routes.ALERTS, deepLinks = listOf(navDeepLink { uriPattern = "udhyath://alerts/{pid}" })) { e ->
+            AlertsScreen(e.arguments?.getString("pid") ?: "", onBack = back)
+        }
+        composable(Routes.MATCHING) { MatchingScreen(nav, onBack = back) }
+        composable(Routes.MUHURTA) { MuhurtaScreen(onBack = back) }
+        composable(Routes.RECTIFY) { e -> RectifyScreen(e.arguments?.getString("pid") ?: "", onBack = back) }
+        composable(Routes.REPORTS, arguments = listOf(optStr("pid")),
+            deepLinks = listOf(navDeepLink { uriPattern = "udhyath://reports" })) { e ->
+            ReportsScreen(nav, e.arguments?.getString("pid").orNullIfBlank())
+        }
+        composable(Routes.REPORT, deepLinks = listOf(navDeepLink { uriPattern = "udhyath://report/{id}" })) { e ->
+            ReportReaderScreen(e.arguments?.getString("id") ?: "", onBack = back)
+        }
+        composable(Routes.WALLET, deepLinks = listOf(navDeepLink { uriPattern = "udhyath://wallet" })) {
+            WalletScreen(nav, onBack = back)
+        }
+        composable(Routes.MORE) { MoreScreen(nav) }
+        composable(Routes.LANGUAGE) {
+            val g = LocalContext.current.graph
+            val scope = rememberCoroutineScope()
+            LanguagePickerScreen(firstRun = false, current = s.lang, onBack = back) { lang -> chooseLanguage(g, lang, scope) }
+        }
+        composable(Routes.NOTIF) { NotificationPrefsScreen(onBack = back) }
+        composable(Routes.LEGAL) { e -> LegalScreen(e.arguments?.getString("doc") ?: "terms", onBack = back) }
+        composable(Routes.REFUNDS, arguments = listOf(optStr("ref"))) { e ->
+            RefundsScreen(e.arguments?.getString("ref").orNullIfBlank(), onBack = back)
+        }
+        composable(Routes.SUPPORT, deepLinks = listOf(navDeepLink { uriPattern = "udhyath://support" })) { SupportScreen(onBack = back) }
+        composable(Routes.ACCOUNT) { AccountScreen(onBack = back) }
+        composable(Routes.CLIENTS) { ClientsScreen(nav) }
+        composable(Routes.CLIENT) { e -> ClientDetailScreen(nav, e.arguments?.getString("pid") ?: "") }
+        composable(Routes.PRO_BUNDLE) { e -> ProBundleScreen(nav, e.arguments?.getString("pid") ?: "") }
+        composable(Routes.BRAND) { BrandScreen(onBack = back) }
+        composable(Routes.PRO) { ProPlanScreen(nav, onBack = back) }
     }
 }

@@ -1,230 +1,289 @@
 package com.udhyath.app
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoStories
+import androidx.compose.material.icons.filled.PictureAsPdf
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Toc
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewModelScope
+import androidx.navigation.NavHostController
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import org.json.JSONObject
+import kotlinx.serialization.json.JsonObject
 
-private val Saffron = Color(0xFFFF9933)
-private val DeepSaffron = Color(0xFFE65100)
-private val DeepPurple = Color(0xFF4A148C)
-private val Maroon = Color(0xFF900C3F)
-private val Cream = Color(0xFFFFF6E8)
-private val CardBg = Color(0xFFFFFDF6)
+class ReportsVm(private val g: AppGraph) : ViewModel() {
+    val reports = MutableStateFlow<Load<List<Report>>>(Load.Loading)
+    val teaser = MutableStateFlow<Load<JsonObject>?>(null)
+    val buying = MutableStateFlow(false)
+    val buyError = MutableStateFlow<Throwable?>(null)
+    val needTopUp = MutableStateFlow(false)
+    private var pendingBuy: Pair<String, Boolean>? = null
 
-@Composable
-fun ReportScreen(loggedIn: Boolean, onNeedLogin: () -> Unit) {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val birthJson = remember {
-        context.getSharedPreferences("udhyath", 0).getString("birth_json", "") ?: ""
-    }
-    var teaser by remember { mutableStateOf<JSONObject?>(null) }
-    var busy by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<String?>(null) }
-    var confirm by remember { mutableStateOf(false) }
-    var reports by remember { mutableStateOf(listOf<JSONObject>()) }
-    var openReport by remember { mutableStateOf<JSONObject?>(null) }
-    var activeId by remember { mutableStateOf<String?>(null) }
-
-    suspend fun refreshList() {
-        try {
-            val arr = Api.listReports()
-            reports = (0 until arr.length()).map { arr.getJSONObject(it) }
-        } catch (_: Exception) {}
-    }
-    LaunchedEffect(loggedIn) { if (loggedIn) refreshList() }
-    // poll while a report is generating
-    LaunchedEffect(activeId) {
-        while (activeId != null) {
-            delay(20_000)
-            refreshList()
-            val cur = reports.find { it.optString("report_id") == activeId }
-            if (cur != null && cur.optString("status") != "generating") activeId = null
-        }
-    }
-
-    val report = openReport
-    if (report != null) {
-        ReportReader(report) { openReport = null }
-        return
-    }
-
-    Column(Modifier.fillMaxSize().background(Cream)
-               .verticalScroll(rememberScrollState()).padding(12.dp)) {
-        Text("📜 సంపూర్ణ జీవిత నివేదిక", fontSize = 21.sp,
-             fontWeight = FontWeight.Bold, color = Maroon)
-        Text("Mega Life Report — ≈1,00,000 words · 18 chapters",
-             fontSize = 13.sp, color = Color(0xFF8D6E63))
-        Spacer(Modifier.height(10.dp))
-
-        if (!loggedIn) {
-            Card(colors = CardDefaults.cardColors(containerColor = CardBg)) {
-                Column(Modifier.padding(16.dp)) {
-                    Text("రిపోర్ట్ కోసం లాగిన్ అవ్వండి — Astrologer ట్యాబ్‌లో.",
-                         color = DeepPurple)
-                    Spacer(Modifier.height(8.dp))
-                    Button(onClick = onNeedLogin,
-                        colors = ButtonDefaults.buttonColors(containerColor = Maroon)) {
-                        Text("లాగిన్ / ఖాతా")
-                    }
-                }
-            }
-            return
-        }
-        if (birthJson.isBlank()) {
-            Card(colors = CardDefaults.cardColors(containerColor = CardBg)) {
-                Text("ముందుగా 🕉 Free Charts ట్యాబ్‌లో మీ జాతకం లెక్కించండి.",
-                     Modifier.padding(16.dp), color = DeepPurple)
-            }
-            return
-        }
-
-        // teaser
-        Card(colors = CardDefaults.cardColors(containerColor = CardBg)) {
-            Column(Modifier.padding(16.dp)) {
-                Text("🔮 ఉచిత ప్రివ్యూ", fontWeight = FontWeight.Bold, color = DeepSaffron)
-                val t = teaser
-                if (t == null) {
-                    Text("మీ జాతకం నుంచి 100 పదాల రుచి — పూర్తి నివేదికలో ఏముందో చూడండి.",
-                         fontSize = 13.sp, color = Color(0xFF5D4037))
-                    Spacer(Modifier.height(8.dp))
-                    Button(enabled = !busy, onClick = {
-                        busy = true; error = null
-                        scope.launch {
-                            try { teaser = Api.reportTeaser(JSONObject(birthJson)) }
-                            catch (e: Exception) { error = e.message }
-                            finally { busy = false }
-                        }
-                    }, colors = ButtonDefaults.buttonColors(containerColor = Saffron)) {
-                        Text(if (busy) "సిద్ధమవుతోంది…" else "ఉచిత ప్రివ్యూ చూడండి",
-                             color = Color(0xFF4E342E))
-                    }
-                } else {
-                    Spacer(Modifier.height(6.dp))
-                    Text(t.getString("teaser"), fontSize = 15.sp, lineHeight = 23.sp,
-                         color = Color(0xFF3E2723))
-                    val fr = t.getJSONObject("full_report")
-                    Spacer(Modifier.height(10.dp))
-                    Text("పూర్తి నివేదికలో ${fr.getJSONArray("chapters").length()} అధ్యాయాలు · " +
-                         "${fr.getString("words")} పదాలు",
-                         fontSize = 12.5.sp, color = Color(0xFF8D6E63))
-                    Spacer(Modifier.height(10.dp))
-                    Button(onClick = { confirm = true },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = Maroon)) {
-                        Text("పూర్తి నివేదిక పొందండి — ₹%.0f".format(fr.getDouble("price")))
-                    }
-                }
-                error?.let { Text(it, color = Color(0xFFC62828), fontSize = 13.sp) }
-            }
-        }
-
-        Spacer(Modifier.height(14.dp))
-        if (reports.isNotEmpty()) {
-            Text("మీ నివేదికలు", fontWeight = FontWeight.Bold, color = Maroon)
-            reports.forEach { r ->
-                val status = r.optString("status")
-                val done = r.optInt("sections_done"); val total = r.optInt("sections_total")
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = CardBg),
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp)
-                        .clickable(enabled = status != "failed") {
-                            scope.launch {
-                                try { openReport = Api.getReport(r.getString("report_id")) }
-                                catch (e: Exception) { error = e.message }
-                            }
-                        },
-                ) {
-                    Column(Modifier.padding(14.dp)) {
-                        Text(when (status) {
-                            "ready" -> "✅ నివేదిక సిద్ధం — చదవడానికి నొక్కండి"
-                            "generating" -> "⏳ తయారవుతోంది… $done/$total అధ్యాయాలు"
-                            else -> "❌ విఫలమైంది (డబ్బు వాపసు అయింది)"
-                        }, fontWeight = FontWeight.SemiBold, color = DeepPurple)
-                        if (status == "generating")
-                            LinearProgressIndicator(
-                                progress = { if (total > 0) done.toFloat() / total else 0f },
-                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                                color = Saffron, trackColor = Color(0xFFF2E3C2))
-                        Text(r.optString("created_at").take(16).replace("T", " "),
-                             fontSize = 11.5.sp, color = Color(0xFF8D6E63))
-                    }
-                }
+    init {
+        refresh()
+        // Poll while anything is generating (the screen is open).
+        viewModelScope.launch {
+            while (isActive) {
+                delay(20_000)
+                if (reports.value.dataOrNull?.any { it.status == "generating" } == true) refresh(quiet = true)
             }
         }
     }
 
-    if (confirm) AlertDialog(
-        onDismissRequest = { confirm = false },
-        title = { Text("పూర్తి జీవిత నివేదిక") },
-        text = { Text("≈1,00,000 పదాలు, 18 అధ్యాయాలు — గతం, భవిష్యత్తు, ఉద్యోగం, " +
-                      "వివాహం, సంతానం, ధనం, కుటుంబం, ఆధ్యాత్మికం. ₹1,050 మీ వాలెట్ " +
-                      "నుంచి తీసుకుంటాం. సుమారు 30–45 నిమిషాల్లో సిద్ధమవుతుంది.") },
-        confirmButton = {
-            Button(onClick = {
-                confirm = false; busy = true
-                scope.launch {
-                    try {
-                        val r = Api.buyReport(JSONObject(birthJson))
-                        activeId = r.getString("report_id")
-                        refreshList()
-                    } catch (e: Exception) { error = e.message }
-                    finally { busy = false }
-                }
-            }, colors = ButtonDefaults.buttonColors(containerColor = Maroon)) {
-                Text("₹1,050 చెల్లించి కొనండి")
-            }
-        },
-        dismissButton = { TextButton(onClick = { confirm = false }) { Text("తర్వాత") } },
-    )
+    fun refresh(quiet: Boolean = false) {
+        viewModelScope.launch {
+            if (!quiet) reports.value = Load.Loading
+            runCatching { g.api.reports() }.onSuccess { reports.value = Load.Ok(it) }.onFailure { if (!quiet) reports.value = Load.Err(it) }
+        }
+    }
+
+    fun loadTeaser(pid: String) {
+        teaser.value = Load.Loading
+        viewModelScope.launch { teaser.value = runCatching { g.api.teaser(pid) }.fold({ Load.Ok(it) }, { Load.Err(it) }) }
+    }
+
+    fun buy(pid: String, brand: Boolean) {
+        buying.value = true; buyError.value = null
+        viewModelScope.launch {
+            try {
+                val r = g.api.createReport(pid, brand)
+                if (r.id.isNotBlank()) ReportWatchWorker.watch(g.app, r.id)
+                refresh()
+            } catch (e: Exception) {
+                if (e.errorKind() == ErrorKind.INSUFFICIENT_BALANCE) { pendingBuy = pid to brand; needTopUp.value = true }
+                else buyError.value = e
+            } finally { buying.value = false }
+        }
+    }
+
+    fun resume(id: String) {
+        buying.value = true; buyError.value = null
+        viewModelScope.launch {
+            try { g.api.resumeReport(id); ReportWatchWorker.watch(g.app, id); refresh() }
+            catch (e: Exception) { if (e.errorKind() == ErrorKind.INSUFFICIENT_BALANCE) needTopUp.value = true else buyError.value = e }
+            finally { buying.value = false }
+        }
+    }
+
+    fun onToppedUp() { needTopUp.value = false; pendingBuy?.let { (p, b) -> pendingBuy = null; buy(p, b) } }
+    fun dismissTopUp() { needTopUp.value = false; pendingBuy = null }
 }
 
 @Composable
-private fun ReportReader(report: JSONObject, onBack: () -> Unit) {
-    val sections = report.getJSONArray("sections")
-    var open by remember { mutableStateOf(0) }
-    Column(Modifier.fillMaxSize().background(Cream)
-               .verticalScroll(rememberScrollState()).padding(12.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = onBack) { Text("← వెనక్కి", color = Maroon) }
-            Text("📜 మీ జీవిత నివేదిక", fontWeight = FontWeight.Bold,
-                 color = Maroon, fontSize = 17.sp)
+fun ReportsScreen(nav: NavHostController, pid: String?) {
+    val g = LocalContext.current.graph
+    val vm = graphViewModel { ReportsVm(it) }
+    val settings by g.settings.settings.collectAsStateWithLifecycle(initialValue = AppSettings())
+    val user by g.account.user.collectAsStateWithLifecycle()
+    val pricing by g.account.pricing.collectAsStateWithLifecycle()
+    val profiles by g.account.profiles.collectAsStateWithLifecycle()
+    val astro = user?.isAstrologer == true
+    var clients by remember { mutableStateOf<List<Profile>>(emptyList()) }
+    LaunchedEffect(astro) { if (astro) clients = runCatching { g.api.clients() }.getOrDefault(emptyList()) }
+    val options = if (astro) (clients + profiles).distinctBy { it.id } else profiles.filter { it.relation != "client" }
+    var selected by remember(pid, options.size) {
+        mutableStateOf(options.firstOrNull { it.id == (pid ?: settings.activeProfileId) } ?: options.firstOrNull())
+    }
+    val reports by vm.reports.collectAsStateWithLifecycle()
+    val teaser by vm.teaser.collectAsStateWithLifecycle()
+    val buying by vm.buying.collectAsStateWithLifecycle()
+    val buyError by vm.buyError.collectAsStateWithLifecycle()
+    val needTopUp by vm.needTopUp.collectAsStateWithLifecycle()
+    var confirm by remember { mutableStateOf(false) }
+    var branded by remember { mutableStateOf(astro) }
+
+    if (needTopUp) TopUpSheet(reason = stringResource(R.string.topup_reason_report, rupees(pricing.report_price_units)),
+        onDismiss = { vm.dismissTopUp() }, onCredited = { vm.onToppedUp() })
+
+    if (confirm) selected?.let { p ->
+        AlertDialog(onDismissRequest = { confirm = false },
+            title = { Text(stringResource(R.string.report_confirm_title)) },
+            text = { Text(stringResource(R.string.report_confirm_body, p.name, rupees(pricing.report_price_units))) },
+            confirmButton = { TextButton(onClick = { confirm = false; vm.buy(p.id, astro && branded) }) { Text(stringResource(R.string.report_buy_short)) } },
+            dismissButton = { TextButton(onClick = { confirm = false }) { Text(stringResource(R.string.cancel)) } })
+    }
+
+    ScreenScaffold(stringResource(R.string.report_title), onBack = if (pid != null) ({ nav.popBackStack() }) else null) {
+        SectionCard(accent = true) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.AutoStories, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.report_headline), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            }
+            Text(stringResource(R.string.report_pitch))
+            ProfilePicker(stringResource(R.string.report_for), options, selected) { selected = it; vm.teaser.value = null }
         }
-        if (report.getString("status") == "generating")
-            Text("⏳ ఇంకా తయారవుతోంది — ${report.optInt("sections_done")}/" +
-                 "${report.optInt("sections_total")} అధ్యాయాలు సిద్ధం.",
-                 fontSize = 13.sp, color = Color(0xFF8D6E63))
-        for (i in 0 until sections.length()) {
-            val s = sections.getJSONObject(i)
-            Column(Modifier.fillMaxWidth().padding(vertical = 5.dp)
-                       .background(CardBg, RoundedCornerShape(12.dp))
-                       .border(1.dp, Color(0xFFE8C87E), RoundedCornerShape(12.dp))
-                       .clickable { open = if (open == i) -1 else i }
-                       .padding(14.dp)) {
-                Text("${s.getInt("idx")}. ${s.getString("title")}",
-                     fontWeight = FontWeight.Bold, color = DeepPurple)
-                if (open == i) {
-                    Spacer(Modifier.height(8.dp))
-                    Text(s.getString("content"), fontSize = 14.5.sp,
-                         lineHeight = 23.sp, color = Color(0xFF3E2723))
+
+        // Free teaser chapter
+        SectionCard(title = stringResource(R.string.report_teaser_title)) {
+            when (val t = teaser) {
+                null -> BigButton(stringResource(R.string.report_teaser_cta), secondary = true, enabled = selected != null,
+                    onClick = { selected?.let { vm.loadTeaser(it.id) } })
+                else -> LoadView(t, onRetry = { selected?.let { vm.loadTeaser(it.id) } }) { TeaserBody(it) }
+            }
+        }
+
+        if (astro) Row(verticalAlignment = Alignment.CenterVertically) {
+            Switch(branded, { branded = it }); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.report_branded))
+        }
+        BigButton(stringResource(R.string.report_buy, rupees(pricing.report_price_units)), enabled = selected != null, busy = buying,
+            onClick = { confirm = true })
+        buyError?.let { Text(errorText(it), color = MaterialTheme.colorScheme.error) }
+
+        Text(stringResource(R.string.report_mine), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        LoadView(reports, onRetry = { vm.refresh() }) { list ->
+            if (list.isEmpty()) EmptyBox(stringResource(R.string.report_none))
+            list.forEach { r -> ReportRow(r, profiles + clients, onOpen = { nav.navigate("report/${r.id}") }, onResume = { vm.resume(r.id) },
+                onRefund = { nav.navigate(Routes.refunds("report:${r.id}")) }) }
+        }
+        Spacer(Modifier.height(16.dp))
+    }
+}
+
+@Composable
+private fun TeaserBody(t: JsonObject) {
+    val chapter = t.child("chapter", "teaser_chapter")
+    val title = chapter?.str("title") ?: t.str("title")
+    val body = chapter?.str("content", "text") ?: t.str("teaser", "content", "text")
+    if (title != null) Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+    if (body != null) MarkdownText(body) else JsonView(t)
+    t.child("full_report")?.let { fr ->
+        val chapters = fr.list("chapters")
+        if (chapters != null) {
+            Text(stringResource(R.string.report_chapters_count, chapters.size), style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.padding(top = 8.dp))
+            chapters.take(18).forEachIndexed { i, c -> Text("${i + 1}. ${c.displayText()}", style = MaterialTheme.typography.bodyMedium) }
+        }
+        fr.str("delivery")?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+    }
+}
+
+@Composable
+private fun ReportRow(r: Report, people: List<Profile>, onOpen: () -> Unit, onResume: () -> Unit, onRefund: () -> Unit) {
+    val who = people.firstOrNull { it.id == r.profile_id }?.name
+    SectionCard(Modifier.clickable(enabled = r.status != "failed", onClick = onOpen)) {
+        Text(listOfNotNull(who, formatDateTime(r.created_at)).joinToString(" · "), style = MaterialTheme.typography.labelLarge)
+        when (r.status) {
+            "generating", "queued", "pending" -> {
+                Text(stringResource(R.string.report_generating, r.sections_done, r.sections_total))
+                val total = r.sections_total.coerceAtLeast(1)
+                LinearProgressIndicator(progress = { r.sections_done / total.toFloat() }, modifier = Modifier.fillMaxWidth())
+                Text(stringResource(R.string.report_notify_note), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            "failed" -> {
+                Text(stringResource(R.string.report_failed, r.sections_done, r.sections_total), color = MaterialTheme.colorScheme.error)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = onResume) { Text(stringResource(R.string.report_resume)) }
+                    OutlinedButton(onClick = onRefund) { Text(stringResource(R.string.refund_request)) }
+                }
+            }
+            else -> Row(verticalAlignment = Alignment.CenterVertically) {
+                Pill(stringResource(R.string.report_ready), MaterialTheme.colorScheme.primaryContainer)
+                Spacer(Modifier.weight(1f))
+                TextButton(onClick = onOpen) { Text(stringResource(R.string.report_read)) }
+            }
+        }
+    }
+}
+
+// ===========================================================================
+// Reader + PDF
+// ===========================================================================
+
+@Composable
+fun ReportReaderScreen(id: String, onBack: () -> Unit) {
+    val ctx = LocalContext.current
+    val g = ctx.graph
+    val scope = rememberCoroutineScope()
+    var state by remember { mutableStateOf<Load<Report>>(Load.Loading) }
+    var tick by remember { mutableIntStateOf(0) }
+    var pdfBusy by remember { mutableStateOf(false) }
+    var pdfErr by remember { mutableStateOf<Throwable?>(null) }
+    var tocOpen by remember { mutableStateOf(false) }
+    val list = rememberLazyListState()
+    LaunchedEffect(id, tick) {
+        state = runCatching { g.api.report(id) }.fold({ Load.Ok(it) }, { Load.Err(it) })
+        while ((state as? Load.Ok)?.data?.status == "generating") {
+            delay(20_000)
+            runCatching { g.api.report(id) }.onSuccess { state = Load.Ok(it) }
+        }
+    }
+    fun pdf(share: Boolean) {
+        pdfBusy = true; pdfErr = null
+        scope.launch {
+            try {
+                val bytes = g.api.download(g.api.reportPdf(id))
+                if (share) shareFile(ctx, bytes, "udhyath-report.pdf", "application/pdf") else viewFile(ctx, bytes, "udhyath-report.pdf", "application/pdf")
+            } catch (e: Exception) { pdfErr = e } finally { pdfBusy = false }
+        }
+    }
+    val report = state.dataOrNull
+    Scaffold(topBar = {
+        AppTopBar(stringResource(R.string.report_title), onBack = onBack, actions = {
+            if (report != null && report.sections.isNotEmpty()) IconButton(onClick = { tocOpen = true }) {
+                Icon(Icons.Default.Toc, contentDescription = stringResource(R.string.report_toc))
+            }
+            if (report?.status == "ready") {
+                IconButton(enabled = !pdfBusy, onClick = { pdf(false) }) { Icon(Icons.Default.PictureAsPdf, contentDescription = stringResource(R.string.report_pdf)) }
+                IconButton(enabled = !pdfBusy, onClick = { pdf(true) }) { Icon(Icons.Default.Share, contentDescription = stringResource(R.string.report_share)) }
+            }
+        })
+    }) { pad ->
+        Box(Modifier.padding(pad).fillMaxSize()) {
+            when (val s = state) {
+                Load.Loading -> LoadingBox()
+                is Load.Err -> ErrorBox(s.error, onRetry = { tick++ })
+                is Load.Ok -> LazyColumn(state = list, contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    if (pdfBusy) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
+                    pdfErr?.let { e -> item { Text(errorText(e), color = MaterialTheme.colorScheme.error) } }
+                    if (s.data.status == "generating") item {
+                        SectionCard(accent = true) {
+                            Text(stringResource(R.string.report_generating, s.data.sections_done, s.data.sections_total))
+                            LinearProgressIndicator(progress = { s.data.sections_done / s.data.sections_total.coerceAtLeast(1).toFloat() },
+                                modifier = Modifier.fillMaxWidth())
+                        }
+                    }
+                    itemsIndexed(s.data.sections.sortedBy { it.idx }) { _, sec ->
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("${sec.idx}. ${sec.title}", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.secondary,
+                                fontWeight = FontWeight.Bold)
+                            MarkdownText(sec.content)
+                            HorizontalDivider(Modifier.padding(top = 8.dp))
+                        }
+                    }
                 }
             }
         }
+    }
+    if (tocOpen && report != null) {
+        AlertDialog(onDismissRequest = { tocOpen = false }, confirmButton = {},
+            title = { Text(stringResource(R.string.report_toc)) },
+            text = {
+                LazyColumn {
+                    val offset = listOfNotNull(pdfBusy.takeIf { it }, pdfErr, report.takeIf { it.status == "generating" }).size
+                    itemsIndexed(report.sections.sortedBy { it.idx }) { i, sec ->
+                        Text("${sec.idx}. ${sec.title}", Modifier.fillMaxWidth().clickable {
+                            tocOpen = false; scope.launch { list.animateScrollToItem(i + offset) }
+                        }.padding(vertical = 10.dp))
+                    }
+                }
+            })
     }
 }

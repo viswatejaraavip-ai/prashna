@@ -1,454 +1,378 @@
 package com.udhyath.app
 
-import android.app.DatePickerDialog
-import android.app.TimePickerDialog
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringArrayResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.delay
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewModelScope
+import androidx.navigation.NavHostController
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
-import org.json.JSONObject
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.intOrNull
 
-// Website palette
-private val Saffron = Color(0xFFFF9933)
-private val DeepSaffron = Color(0xFFE65100)
-private val DeepPurple = Color(0xFF4A148C)
-private val Maroon = Color(0xFF900C3F)
-private val Cream = Color(0xFFFFF6E8)
-private val CardBg = Color(0xFFFFFDF6)
-private val Gold = Color(0xFFD4A017)
+// ===========================================================================
+// Chart data extraction (tolerant of the engine's several output shapes)
+// ===========================================================================
 
-private val PLANET_ABBR = mapOf(
-    "Sun" to "Su", "Moon" to "Mo", "Mars" to "Ma", "Mercury" to "Me",
-    "Jupiter" to "Ju", "Venus" to "Ve", "Saturn" to "Sa",
-    "Rahu" to "Ra", "Ketu" to "Ke", "Lagna" to "La")
+val PLANET_KEYS = listOf("Sun", "Moon", "Mars", "Mercury", "Jupiter", "Venus", "Saturn", "Rahu", "Ketu", "Lagna")
+private val SIGN_EN = listOf("aries", "taurus", "gemini", "cancer", "leo", "virgo", "libra", "scorpio", "sagittarius", "capricorn", "aquarius", "pisces")
+private val SIGN_SA = listOf("mesha", "vrishabha", "mithuna", "karka", "simha", "kanya", "tula", "vrishchika", "dhanu", "makara", "kumbha", "meena")
 
-// Classical South Indian fixed layout: sign -> (row, col) in a 4x4 frame
-private val SOUTH_LAYOUT = mapOf(
-    "Pisces" to (0 to 0), "Aries" to (0 to 1), "Taurus" to (0 to 2), "Gemini" to (0 to 3),
-    "Aquarius" to (1 to 0), "Cancer" to (1 to 3),
-    "Capricorn" to (2 to 0), "Leo" to (2 to 3),
-    "Sagittarius" to (3 to 0), "Scorpio" to (3 to 1), "Libra" to (3 to 2), "Virgo" to (3 to 3))
+/** Sign index 0..11 from a name (English or Sanskrit, any case/prefix) or a 1-based number. */
+fun signIndex(v: Any?): Int? {
+    when (v) {
+        is Int -> return if (v in 1..12) v - 1 else null
+        is String -> {
+            v.trim().toIntOrNull()?.let { return signIndex(it) }
+            val s = v.trim().lowercase()
+            SIGN_EN.indexOfFirst { s.startsWith(it.take(3)) }.takeIf { it >= 0 }?.let { return it }
+            SIGN_SA.indexOfFirst { s.startsWith(it.take(4)) }.takeIf { it >= 0 }?.let { return it }
+        }
+    }
+    return null
+}
 
-private val TABS = listOf("Chart", "Navamsa", "Planets", "KP", "Dashas",
-                          "Yogas", "Doshas", "Shadbala", "Gems")
+private fun planetKey(name: String): String? {
+    val n = name.trim().lowercase()
+    if (n in setOf("lagna", "ascendant", "asc", "la", "lg")) return "Lagna"
+    return PLANET_KEYS.firstOrNull { it.lowercase() == n || it.lowercase().take(2) == n }
+}
+
+data class ChartData(val lagna: Int, val bySign: Map<Int, List<String>>, val retro: Set<String> = emptySet())
+
+private fun signOfEntry(v: kotlinx.serialization.json.JsonElement): Int? = when (v) {
+    is JsonPrimitive -> v.intOrNull?.let { signIndex(it) } ?: signIndex(v.content)
+    is JsonObject -> v.str("sign", "rasi", "sign_name")?.let { signIndex(it) }
+        ?: v.int("sign_num", "sign_index", "rasi_num")?.let { signIndex(it) }
+    else -> null
+}
+
+fun extractChart(root: JsonObject): ChartData? {
+    // Candidate containers, most specific first.
+    val candidates = listOfNotNull(
+        root.child("chart"), root.child("placements"), root.child("positions"), root.child("planets"),
+        root.child("rasi"), root.child("navamsa"), root.child("varga"), root,
+    )
+    for (c in candidates) {
+        val bySign = mutableMapOf<Int, MutableList<String>>()
+        val retro = mutableSetOf<String>()
+        var lagna: Int? = null
+        c.forEach { (k, v) ->
+            val pk = planetKey(k) ?: return@forEach
+            val si = signOfEntry(v) ?: return@forEach
+            if (pk == "Lagna") lagna = si
+            bySign.getOrPut(si) { mutableListOf() }.add(pk)
+            if ((v as? JsonObject)?.bool("retrograde", "retro") == true) retro += pk
+        }
+        // Planets as an array of {planet|name, sign}
+        (c["planets"] as? JsonArray)?.forEach { el ->
+            val o = el as? JsonObject ?: return@forEach
+            val pk = o.str("planet", "name", "graha")?.let { planetKey(it) } ?: return@forEach
+            val si = signOfEntry(o) ?: return@forEach
+            if (pk == "Lagna") lagna = si
+            bySign.getOrPut(si) { mutableListOf() }.add(pk)
+            if (o.bool("retrograde", "retro") == true) retro += pk
+        }
+        if (lagna == null) {
+            lagna = (root["ascendant"] ?: root["lagna"] ?: c["ascendant"] ?: c["lagna"])?.let { signOfEntry(it) }
+            lagna?.let { l -> if (bySign.values.none { "Lagna" in it }) bySign.getOrPut(l) { mutableListOf() }.add("Lagna") }
+        }
+        if (bySign.values.sumOf { it.size } >= 5 && lagna != null) return ChartData(lagna!!, bySign, retro)
+    }
+    return null
+}
+
+// ===========================================================================
+// Chart drawings — South Indian (fixed signs) and North Indian (fixed houses)
+// ===========================================================================
 
 @Composable
-fun ChartsScreen() {
-    val context = LocalContext.current
+private fun planetLabels(): Map<String, String> {
+    val abbr = stringArrayResource(R.array.planet_abbr)
+    return PLANET_KEYS.mapIndexed { i, k -> k to abbr.getOrElse(i) { k.take(2) } }.toMap()
+}
+
+@Composable
+private fun chartDescription(c: ChartData, title: String): String {
+    val signs = stringArrayResource(R.array.sign_names)
+    val names = stringArrayResource(R.array.planet_names)
+    val parts = c.bySign.entries.sortedBy { it.key }.joinToString("; ") { (s, ps) ->
+        signs[s] + ": " + ps.joinToString(", ") { p -> names.getOrNull(PLANET_KEYS.indexOf(p)) ?: p }
+    }
+    return stringResource(R.string.cd_chart, title, signs[c.lagna], parts)
+}
+
+@Composable
+fun SouthChart(c: ChartData, title: String, modifier: Modifier = Modifier) {
+    val labels = planetLabels()
+    val signs = stringArrayResource(R.array.sign_names)
+    val desc = chartDescription(c, title)
+    // Sign index → (row, col) in the 4x4 frame (Pisces top-left, clockwise).
+    val pos = mapOf(11 to (0 to 0), 0 to (0 to 1), 1 to (0 to 2), 2 to (0 to 3), 10 to (1 to 0), 3 to (1 to 3),
+        9 to (2 to 0), 4 to (2 to 3), 8 to (3 to 0), 7 to (3 to 1), 6 to (3 to 2), 5 to (3 to 3))
+    val line = MaterialTheme.colorScheme.outline
+    Column(modifier.fillMaxWidth().semantics(mergeDescendants = true) { contentDescription = desc }) {
+        for (r in 0..3) Row(Modifier.fillMaxWidth().aspectRatio(4f)) {
+            for (col in 0..3) {
+                val sign = pos.entries.firstOrNull { it.value == (r to col) }?.key
+                if (sign == null) {
+                    if (r == 1 && col == 1) Box(Modifier.weight(2f).fillMaxHeight(), contentAlignment = Alignment.Center) {
+                        Text(title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary, textAlign = TextAlign.Center)
+                    } else if (r == 1 || r == 2) { if (col == 1) Spacer(Modifier.weight(2f)) }
+                    continue
+                }
+                val isLagna = sign == c.lagna
+                Column(Modifier.weight(1f).fillMaxHeight().padding(1.dp)
+                    .background(if (isLagna) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface, RoundedCornerShape(4.dp))
+                    .border(if (isLagna) 2.dp else 1.dp, if (isLagna) MaterialTheme.colorScheme.primary else line, RoundedCornerShape(4.dp))
+                    .padding(3.dp)) {
+                    Text(signs[sign], style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                    Text(c.bySign[sign].orEmpty().joinToString(" ") { labels[it] + if (it in c.retro) "ᴿ" else "" },
+                        style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.secondary)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun NorthChart(c: ChartData, title: String, modifier: Modifier = Modifier) {
+    val labels = planetLabels()
+    val desc = chartDescription(c, title)
+    val measurer = rememberTextMeasurer()
+    val lineColor = MaterialTheme.colorScheme.secondary
+    val textColor = MaterialTheme.colorScheme.onSurface
+    val numColor = MaterialTheme.colorScheme.primary
+    val scale = LocalTextScale.current
+    // House centres (unit square), house 1 = top diamond, anticlockwise.
+    val centres = listOf(0.5f to 0.27f, 0.25f to 0.11f, 0.11f to 0.25f, 0.27f to 0.5f, 0.11f to 0.75f, 0.25f to 0.89f,
+        0.5f to 0.73f, 0.75f to 0.89f, 0.89f to 0.75f, 0.73f to 0.5f, 0.89f to 0.25f, 0.75f to 0.11f)
+    val numPos = listOf(0.5f to 0.43f, 0.25f to 0.2f, 0.2f to 0.25f, 0.43f to 0.5f, 0.2f to 0.75f, 0.25f to 0.8f,
+        0.5f to 0.57f, 0.75f to 0.8f, 0.8f to 0.75f, 0.57f to 0.5f, 0.8f to 0.25f, 0.75f to 0.2f)
+    Column(modifier.fillMaxWidth()) {
+        Text(title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary,
+            modifier = Modifier.align(Alignment.CenterHorizontally))
+        Canvas(Modifier.fillMaxWidth().aspectRatio(1f).semantics { contentDescription = desc }) {
+            val w = size.width; val h = size.height
+            val st = Stroke(width = 2.dp.toPx())
+            drawRect(lineColor, style = st)
+            drawLine(lineColor, Offset(0f, 0f), Offset(w, h), 2.dp.toPx())
+            drawLine(lineColor, Offset(w, 0f), Offset(0f, h), 2.dp.toPx())
+            drawLine(lineColor, Offset(w / 2, 0f), Offset(w, h / 2), 2.dp.toPx())
+            drawLine(lineColor, Offset(w, h / 2), Offset(w / 2, h), 2.dp.toPx())
+            drawLine(lineColor, Offset(w / 2, h), Offset(0f, h / 2), 2.dp.toPx())
+            drawLine(lineColor, Offset(0f, h / 2), Offset(w / 2, 0f), 2.dp.toPx())
+            for (house in 0 until 12) {
+                val sign = (c.lagna + house) % 12
+                val (nx, ny) = numPos[house]
+                val num = measurer.measure("${sign + 1}", TextStyle(fontSize = (11 * scale).sp, color = numColor))
+                drawText(num, topLeft = Offset(nx * w - num.size.width / 2f, ny * h - num.size.height / 2f))
+                val planets = c.bySign[sign].orEmpty().filter { it != "Lagna" }
+                    .joinToString(" ") { labels[it] + if (it in c.retro) "ᴿ" else "" }
+                val txt = if (house == 0) (labels["Lagna"] + if (planets.isNotEmpty()) " $planets" else "") else planets
+                if (txt.isBlank()) continue
+                val (cx, cy) = centres[house]
+                val m = measurer.measure(txt, TextStyle(fontSize = (13 * scale).sp, fontWeight = FontWeight.SemiBold, color = textColor,
+                    textAlign = TextAlign.Center), constraints = androidx.compose.ui.unit.Constraints(maxWidth = (w * 0.22f).toInt()))
+                drawText(m, topLeft = Offset(cx * w - m.size.width / 2f, cy * h - m.size.height / 2f))
+            }
+        }
+    }
+}
+
+@Composable
+fun ChartDrawing(c: ChartData, title: String, style: String) {
+    if (style == "north") NorthChart(c, title) else SouthChart(c, title)
+}
+
+// ===========================================================================
+// Charts screen
+// ===========================================================================
+
+/** One tab: API kind (+division) and whether it's a Pro (astrologer) view. */
+data class ChartTab(val kind: String, val division: String? = null, val label: Int, val pro: Boolean = false)
+
+val BASIC_TABS = listOf(
+    ChartTab("rasi", label = R.string.tab_rasi),
+    ChartTab("navamsa", label = R.string.tab_navamsa),
+    ChartTab("dashas", label = R.string.tab_dashas),
+    ChartTab("yogas", label = R.string.tab_yogas),
+    ChartTab("doshas", label = R.string.tab_doshas),
+    ChartTab("panchanga", label = R.string.tab_panchanga),
+    ChartTab("bhava", label = R.string.tab_bhava),
+    ChartTab("gemstones", label = R.string.tab_gemstones),
+)
+val PRO_TABS = listOf(
+    ChartTab("varga", "all", R.string.tab_vargas, pro = true),
+    ChartTab("kp", label = R.string.tab_kp, pro = true),
+    ChartTab("shadbala", label = R.string.tab_shadbala, pro = true),
+    ChartTab("ashtakavarga", label = R.string.tab_ashtakavarga, pro = true),
+    ChartTab("nadi", label = R.string.tab_nadi, pro = true),
+    ChartTab("varshphal", label = R.string.tab_varshphal, pro = true),
+    ChartTab("lalkitab", label = R.string.tab_lalkitab, pro = true),
+)
+
+class ChartsVm(private val g: AppGraph) : ViewModel() {
+    val state = MutableStateFlow<Load<JsonObject>>(Load.Loading)
+    private val cache = mutableMapOf<String, JsonObject>()
+    fun load(pid: String, tab: ChartTab, force: Boolean = false) {
+        val key = "$pid/${tab.kind}/${tab.division}"
+        if (!force) cache[key]?.let { state.value = Load.Ok(it); return }
+        viewModelScope.launch {
+            state.value = Load.Loading
+            val year = if (tab.kind == "varshphal") java.time.LocalDate.now().year else null
+            state.value = runCatching { g.api.chart(pid, tab.kind, tab.division, year) }
+                .onSuccess { cache[key] = it }.fold({ Load.Ok(it) }, { Load.Err(it) })
+        }
+    }
+}
+
+@Composable
+fun ChartsScreen(nav: NavHostController, pid: String?, showBack: Boolean) {
+    val ctx = LocalContext.current
+    val g = ctx.graph
+    val vm = graphViewModel(key = "charts-$pid") { ChartsVm(it) }
+    val settings by g.settings.settings.collectAsStateWithLifecycle(initialValue = AppSettings())
+    val profiles by g.account.profiles.collectAsStateWithLifecycle()
+    val user by g.account.user.collectAsStateWithLifecycle()
+    val astro = user?.isAstrologer == true
+    val profile = profiles.firstOrNull { it.id == (pid ?: settings.activeProfileId) } ?: profiles.firstOrNull { it.relation != "client" }
+    val tabs = if (astro) BASIC_TABS + PRO_TABS else BASIC_TABS
+    var tabIdx by rememberSaveableInt(0)
+    val tab = tabs[tabIdx.coerceIn(0, tabs.lastIndex)]
+    val state by vm.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
+    var sharing by remember { mutableStateOf(false) }
+    val locked = tab.pro && user?.isPro != true
 
-    var dateText by remember { mutableStateOf(prefsGet(context, "bc_date")) }
-    var timeText by remember { mutableStateOf(prefsGet(context, "bc_time")) }
-    var placeQuery by remember { mutableStateOf(prefsGet(context, "bc_place")) }
-    var suggestions by remember { mutableStateOf(listOf<JSONObject>()) }
-    var picked by remember { mutableStateOf<JSONObject?>(null) }
-    var chart by remember { mutableStateOf<JSONObject?>(null) }
-    var birthBody by remember { mutableStateOf<JSONObject?>(null) }
-    var dashaData by remember { mutableStateOf<JSONObject?>(null) }
-    var busy by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<String?>(null) }
-    var tab by remember { mutableStateOf(0) }
+    LaunchedEffect(profile?.id, tab) { if (profile != null && !locked) vm.load(profile.id, tab) }
 
-    LaunchedEffect(placeQuery) {
-        if (picked?.optString("name")?.let { placeQuery.startsWith(it) } == true) return@LaunchedEffect
-        delay(250)
-        if (placeQuery.length >= 2) {
-            try {
-                val arr = Api.searchPlaces(placeQuery)
-                suggestions = (0 until arr.length()).map { arr.getJSONObject(it) }
-            } catch (_: Exception) {}
-        } else suggestions = emptyList()
-    }
-
-    fun compute() {
-        val d = dateText.split("-").mapNotNull { it.toIntOrNull() }
-        val t = timeText.split(":").mapNotNull { it.toIntOrNull() }
-        val p = picked
-        if (d.size != 3 || t.size < 2 || p == null) {
-            error = "Pick date, time and a birth place from suggestions"; return
-        }
-        error = null; busy = true; chart = null; dashaData = null
-        val body = JSONObject()
-            .put("year", d[0]).put("month", d[1]).put("day", d[2])
-            .put("hour", t[0]).put("minute", t[1])
-            .put("latitude", p.getDouble("latitude"))
-            .put("longitude", p.getDouble("longitude"))
-            .put("tz_name", p.optString("tz_name", "Asia/Kolkata"))
-        scope.launch {
-            try {
-                chart = Api.computeChart(body)
-                birthBody = body
-                tab = 0
-                prefsPut(context, "bc_date", dateText); prefsPut(context, "bc_time", timeText)
-                prefsPut(context, "birth_json", body.toString())
-                prefsPut(context, "bc_place", placeQuery)
-            } catch (e: Exception) { error = e.message ?: "Network error" }
-            finally { busy = false }
-        }
-    }
-
-    LaunchedEffect(tab, chart) {
-        if (TABS[tab] == "Dashas" && chart != null && dashaData == null) {
-            try { dashaData = Api.dashas(birthBody!!, "vimshottari") } catch (_: Exception) {}
-        }
-    }
-
-    Column(Modifier.fillMaxSize().background(Cream)) {
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(12.dp)) {
-            // ---- birth form ----
-            SectionCard {
-                Text("🕉 Compute birth chart — FREE", fontWeight = FontWeight.Bold,
-                     color = DeepSaffron, fontSize = 17.sp)
-                Spacer(Modifier.height(8.dp))
-                Row {
-                    OutlinedButton(onClick = {
-                        val now = java.util.Calendar.getInstance()
-                        DatePickerDialog(context, { _, y, m, dd ->
-                            dateText = "%04d-%02d-%02d".format(y, m + 1, dd)
-                        }, now.get(1), now.get(2), now.get(5)).show()
-                    }, modifier = Modifier.weight(1f)) {
-                        Text(if (dateText.isBlank()) "📅 Date" else dateText, color = Maroon)
-                    }
-                    Spacer(Modifier.width(8.dp))
-                    OutlinedButton(onClick = {
-                        TimePickerDialog(context, { _, h, m ->
-                            timeText = "%02d:%02d".format(h, m)
-                        }, 12, 0, true).show()
-                    }, modifier = Modifier.weight(1f)) {
-                        Text(if (timeText.isBlank()) "🕐 Time" else timeText, color = Maroon)
-                    }
+    Scaffold(topBar = {
+        AppTopBar(profile?.name ?: stringResource(R.string.tab_charts), onBack = if (showBack || pid != null) ({ nav.popBackStack() }) else null, actions = {
+            if (profile != null) IconButton(enabled = !sharing, onClick = {
+                sharing = true
+                scope.launch {
+                    runCatching { g.api.download(g.api.shareCard(profile.id, "chart")) }
+                        .onSuccess { shareFile(ctx, it, "udhyath-chart.png", "image/png", ctx.getString(R.string.share_chart_text)) }
+                    sharing = false
                 }
-                OutlinedTextField(placeQuery, {
-                    placeQuery = it; picked = null
-                }, label = { Text("Birth place — type to search") },
-                    singleLine = true, modifier = Modifier.fillMaxWidth())
-                suggestions.takeIf { picked == null }?.forEach { s ->
-                    Text("${s.getString("name")}, ${s.getString("region")}",
-                        Modifier.fillMaxWidth().clickable {
-                            picked = s
-                            placeQuery = "${s.getString("name")}, ${s.getString("region")}"
-                            suggestions = emptyList()
-                        }.padding(vertical = 7.dp, horizontal = 6.dp),
-                        color = DeepPurple)
-                }
-                Spacer(Modifier.height(10.dp))
-                Button(onClick = { compute() }, enabled = !busy,
-                    colors = ButtonDefaults.buttonColors(containerColor = DeepSaffron),
-                    modifier = Modifier.fillMaxWidth()) {
-                    Text(if (busy) "Computing…" else "Compute all charts")
-                }
-                error?.let { Text(it, color = Color(0xFFC62828), fontSize = 13.sp) }
-            }
-
-            chart?.let { c ->
-                ScrollableTabRow(selectedTabIndex = tab, containerColor = CardBg,
-                                 contentColor = Maroon, edgePadding = 4.dp) {
-                    TABS.forEachIndexed { i, name ->
-                        Tab(selected = tab == i, onClick = { tab = i },
-                            text = { Text(name, fontSize = 13.sp,
-                                fontWeight = if (tab == i) FontWeight.Bold else FontWeight.Normal) })
-                    }
-                }
-                Spacer(Modifier.height(10.dp))
-                when (TABS[tab]) {
-                    "Chart" -> RasiTab(c)
-                    "Navamsa" -> VargaTab(c, "D9", "Navamsa — marriage, inner strength")
-                    "Planets" -> PlanetsTab(c)
-                    "KP" -> KPTab(c)
-                    "Dashas" -> DashasTab(dashaData)
-                    "Yogas" -> YogasTab(c)
-                    "Doshas" -> DoshasTab(c)
-                    "Shadbala" -> ShadbalaTab(c)
-                    "Gems" -> GemsTab(c)
+            }) { Icon(Icons.Default.Share, contentDescription = stringResource(R.string.cd_share_chart)) }
+        })
+    }) { pad ->
+        Column(Modifier.padding(pad).fillMaxSize()) {
+            if (profile == null) { EmptyBox(stringResource(R.string.profile_none)); return@Column }
+            if (pid == null && !astro) {
+                val family = profiles.filter { it.relation != "client" }
+                Box(Modifier.padding(horizontal = 16.dp)) {
+                    ProfileSwitcher(family, profile, onPick = { p -> scope.launch { g.settings.setActiveProfile(p.id) } },
+                        onManage = { nav.navigate(Routes.PROFILES) })
                 }
             }
-        }
-    }
-}
-
-private fun prefsGet(ctx: android.content.Context, k: String) =
-    ctx.getSharedPreferences("udhyath", 0).getString(k, "") ?: ""
-
-private fun prefsPut(ctx: android.content.Context, k: String, v: String) =
-    ctx.getSharedPreferences("udhyath", 0).edit().putString(k, v).apply()
-
-@Composable
-private fun SectionCard(content: @Composable ColumnScope.() -> Unit) {
-    Column(
-        Modifier.fillMaxWidth().padding(vertical = 6.dp)
-            .background(CardBg, RoundedCornerShape(14.dp))
-            .border(1.dp, Color(0xFFE8C87E), RoundedCornerShape(14.dp))
-            .padding(14.dp), content = content)
-}
-
-@Composable
-fun SouthChart(placements: Map<String, List<String>>, lagnaSign: String, title: String) {
-    Column(Modifier.fillMaxWidth()) {
-        Text(title, color = Maroon, fontWeight = FontWeight.Bold,
-             modifier = Modifier.align(Alignment.CenterHorizontally))
-        Spacer(Modifier.height(6.dp))
-        @Composable
-        fun RowScope.signCell(sign: String) {
-            val isLagna = sign == lagnaSign
-            Column(
-                Modifier.weight(1f).fillMaxHeight().padding(1.dp)
-                    .background(if (isLagna) Color(0xFFFFE9CC) else Color.White,
-                                RoundedCornerShape(6.dp))
-                    .border(if (isLagna) 2.dp else 1.dp,
-                            if (isLagna) DeepSaffron else Color(0xFFE8C87E),
-                            RoundedCornerShape(6.dp))
-                    .padding(3.dp)
-            ) {
-                Text(sign.take(3), fontSize = 9.sp, color = Color(0xFF8D6E63))
-                Text((placements[sign] ?: emptyList()).joinToString(" "),
-                     fontSize = 11.5.sp, color = DeepPurple,
-                     fontWeight = FontWeight.SemiBold, lineHeight = 14.sp)
+            ScrollableTabRow(selectedTabIndex = tabIdx, edgePadding = 12.dp, containerColor = MaterialTheme.colorScheme.background) {
+                tabs.forEachIndexed { i, t ->
+                    Tab(selected = i == tabIdx, onClick = { tabIdx = i }, text = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (t.pro && user?.isPro != true) Icon(Icons.Default.Lock, contentDescription = null, modifier = Modifier.size(14.dp))
+                            Text(stringResource(t.label))
+                        }
+                    })
+                }
             }
-        }
-        val signAt = { r: Int, col: Int ->
-            SOUTH_LAYOUT.entries.first { it.value == (r to col) }.key }
-        for (r in 0..3) {
-            Row(Modifier.fillMaxWidth().height(78.dp)) {
-                if (r == 0 || r == 3) {
-                    for (col in 0..3) signCell(signAt(r, col))
+            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (!profile.time_known && tab.kind in setOf("rasi", "bhava", "navamsa")) {
+                    Text(stringResource(R.string.time_unknown_chart_note), style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                if (locked) {
+                    ProLockedCard { nav.navigate(Routes.PRO) }
                 } else {
-                    signCell(signAt(r, 0))
-                    Box(Modifier.weight(2f).fillMaxHeight(),
-                        contentAlignment = Alignment.Center) {
-                        if (r == 1) Text("ॐ", fontSize = 36.sp, color = Saffron,
-                                         textAlign = TextAlign.Center)
-                    }
-                    signCell(signAt(r, 3))
-                }
-            }
-        }
-    }
-}
-
-private fun compactToPlacements(compact: JSONObject): Pair<Map<String, List<String>>, String> {
-    val out = mutableMapOf<String, MutableList<String>>()
-    var lagna = ""
-    compact.keys().forEach { planet ->
-        val sign = compact.getString(planet)
-        if (planet == "Lagna") lagna = sign
-        out.getOrPut(sign) { mutableListOf() }.add(PLANET_ABBR[planet] ?: planet.take(2))
-    }
-    return out to lagna
-}
-
-@Composable
-private fun RasiTab(c: JSONObject) {
-    val d1 = c.getJSONObject("all_vargas").getJSONObject("D1")
-    val (pl, lagna) = compactToPlacements(d1)
-    SectionCard {
-        SouthChart(pl, lagna, "Rasi (D-1)")
-        Spacer(Modifier.height(8.dp))
-        val pan = c.getJSONObject("panchanga")
-        Text("Birth panchanga: ${pan.getJSONObject("tithi").getString("paksha")} " +
-             "${pan.getJSONObject("tithi").getString("name")} · ${pan.getString("vara")} · " +
-             "${pan.getJSONObject("nakshatra").getString("name")} · " +
-             "${pan.getJSONObject("yoga").getString("name")}",
-             fontSize = 13.sp, color = Color(0xFF8D6E63))
-    }
-}
-
-@Composable
-private fun VargaTab(c: JSONObject, key: String, caption: String) {
-    val v = c.getJSONObject("all_vargas").getJSONObject(key)
-    val (pl, lagna) = compactToPlacements(v)
-    SectionCard {
-        SouthChart(pl, lagna, "$key chart")
-        Text(caption, fontSize = 13.sp, color = Color(0xFF8D6E63))
-    }
-}
-
-@Composable
-private fun TableRow(vararg cells: String, bold: Boolean = false) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-        cells.forEachIndexed { i, cell ->
-            Text(cell, Modifier.weight(if (i == 0) 1.1f else 1f), fontSize = 12.5.sp,
-                 fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal,
-                 color = if (bold) Maroon else Color(0xFF3E2723))
-        }
-    }
-}
-
-@Composable
-private fun PlanetsTab(c: JSONObject) {
-    SectionCard {
-        TableRow("Planet", "Sign", "Position", "Nakshatra", "House", bold = true)
-        HorizontalDivider(color = Color(0xFFE8C87E))
-        val asc = c.getJSONObject("ascendant")
-        TableRow("Lagna", asc.getString("sign"), asc.getString("dms"), "—", "1")
-        val planets = c.getJSONObject("planets")
-        planets.keys().forEach { name ->
-            val p = planets.getJSONObject(name)
-            TableRow(name + (if (p.optBoolean("retrograde")) " ℞" else ""),
-                     p.getString("sign"), p.getString("dms"),
-                     p.getJSONObject("nakshatra").getString("name") +
-                     " (" + p.getJSONObject("nakshatra").getInt("pada") + ")",
-                     p.getInt("house_whole_sign").toString())
-        }
-    }
-}
-
-@Composable
-private fun KPTab(c: JSONObject) {
-    val kp = c.getJSONObject("kp")
-    SectionCard {
-        Text("KP sub lords (Krishnamurti ayanamsa)", fontWeight = FontWeight.Bold, color = Maroon)
-        Spacer(Modifier.height(6.dp))
-        TableRow("Planet", "Sign lord", "Star lord", "Sub lord", bold = true)
-        HorizontalDivider(color = Color(0xFFE8C87E))
-        val planets = kp.getJSONObject("planets")
-        planets.keys().forEach { name ->
-            val p = planets.getJSONObject(name)
-            TableRow(name, p.getString("sign_lord"), p.getString("star_lord"),
-                     p.getString("sub_lord"))
-        }
-    }
-}
-
-@Composable
-private fun DashasTab(d: JSONObject?) {
-    if (d == null) { SectionCard { Text("Loading dashas…", color = Color(0xFF8D6E63)) }; return }
-    var open by remember { mutableStateOf(-1) }
-    SectionCard {
-        Text("Vimshottari mahadashas (tap for antardashas)",
-             fontWeight = FontWeight.Bold, color = Maroon)
-        val mahas = d.getJSONArray("mahadashas")
-        for (i in 0 until mahas.length()) {
-            val m = mahas.getJSONObject(i)
-            Column(Modifier.fillMaxWidth().clickable { open = if (open == i) -1 else i }
-                       .padding(vertical = 6.dp)) {
-                Text("${m.getString("lord")}  ·  ${m.getString("start").take(10)} → " +
-                     m.getString("end").take(10),
-                     fontWeight = FontWeight.SemiBold, color = DeepPurple, fontSize = 14.sp)
-                if (open == i) {
-                    val antars = m.getJSONArray("antardashas")
-                    for (j in 0 until antars.length()) {
-                        val a = antars.getJSONObject(j)
-                        Text("   ${a.getString("lord")}: ${a.getString("start").take(10)} → " +
-                             a.getString("end").take(10),
-                             fontSize = 12.5.sp, color = Color(0xFF5D4037))
+                    val st = state
+                    // Server enforces Pro for deep kinds for every role: 403 → upsell.
+                    if (st is Load.Err && st.error.errorKind() == ErrorKind.FORBIDDEN) ProLockedCard { nav.navigate(Routes.PRO) }
+                    else LoadView(st, onRetry = { vm.load(profile.id, tab, force = true) }) { data ->
+                        ChartTabBody(tab, data, settings.chartStyle, dense = astro) { style ->
+                            scope.launch { g.settings.setChartStyle(style) }
+                        }
                     }
                 }
             }
-            HorizontalDivider(color = Color(0xFFF2E3C2))
         }
     }
 }
 
 @Composable
-private fun YogasTab(c: JSONObject) {
-    val y = c.getJSONObject("yogas")
-    SectionCard {
-        Text("✨ ${y.getInt("count")} yogas found", fontWeight = FontWeight.Bold, color = Maroon)
-        val arr = y.getJSONArray("yogas")
-        for (i in 0 until arr.length()) {
-            val item = arr.getJSONObject(i)
-            Spacer(Modifier.height(8.dp))
-            Text(item.getString("yoga"), fontWeight = FontWeight.Bold, color = DeepPurple)
-            Text(item.getString("description"), fontSize = 13.sp, color = Color(0xFF5D4037))
-            Text("📍 " + item.getString("factors"), fontSize = 12.sp, color = Color(0xFF8D6E63))
+fun rememberSaveableInt(initial: Int): MutableState<Int> =
+    androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(initial) }
+
+@Composable
+fun ProLockedCard(onGetPro: () -> Unit) {
+    SectionCard(accent = true) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
+            Spacer(Modifier.width(8.dp))
+            Text(stringResource(R.string.pro_locked), style = MaterialTheme.typography.titleMedium)
         }
-        if (arr.length() == 0) Text("No classical yogas from the detected set.",
-                                    color = Color(0xFF8D6E63))
+        Text(stringResource(R.string.pro_locked_desc))
+        BigButton(stringResource(R.string.pro_get), onClick = onGetPro)
     }
 }
 
 @Composable
-private fun DoshasTab(c: JSONObject) {
-    val d = c.getJSONObject("doshas")
-    val m = d.getJSONObject("manglik")
-    val k = d.getJSONObject("kaal_sarpa")
-    val ss = d.getJSONObject("sadhe_sati")
-    SectionCard {
-        Text(if (m.getBoolean("is_manglik")) "🔥 Manglik — ${m.getString("severity")}"
-             else "✅ Not Manglik", fontWeight = FontWeight.Bold, color = Maroon)
-        Text("Mars in ${m.getString("mars_sign")}", fontSize = 13.sp, color = Color(0xFF5D4037))
-    }
-    SectionCard {
-        Text(if (k.getBoolean("present")) "🐍 Kaal Sarpa — ${k.optString("type")}"
-             else if (k.getBoolean("partial")) "🟡 Partial Kaal Sarpa — ${k.optString("type")}"
-             else "✅ No Kaal Sarpa dosha", fontWeight = FontWeight.Bold, color = Maroon)
-    }
-    SectionCard {
-        Text("🪐 Sadhe Sati (Moon: ${ss.getString("natal_moon_sign")})",
-             fontWeight = FontWeight.Bold, color = Maroon)
-        val cur = ss.optJSONObject("currently_active")
-        Text(if (cur != null) "Active now: ${cur.getString("phase")} until ${cur.getString("end")}"
-             else "Not running today.", fontSize = 13.sp, color = Color(0xFF5D4037))
-        val w = ss.getJSONArray("windows")
-        for (i in 0 until minOf(w.length(), 12)) {
-            val x = w.getJSONObject(i)
-            Text("${x.getString("start")} → ${x.getString("end")}  ·  " +
-                 "${if (x.getString("kind") == "sadhe_sati") "Sadhe Sati" else "Dhaiya"} " +
-                 "(${x.getString("saturn_sign")})", fontSize = 12.sp, color = Color(0xFF8D6E63))
-        }
-    }
-}
-
-@Composable
-private fun ShadbalaTab(c: JSONObject) {
-    val sb = c.getJSONObject("shadbala")
-    val ranking = sb.getJSONArray("ranking")
-    SectionCard {
-        Text("💪 Shadbala strength (rupas vs required)",
-             fontWeight = FontWeight.Bold, color = Maroon)
-        Spacer(Modifier.height(6.dp))
-        for (i in 0 until ranking.length()) {
-            val name = ranking.getString(i)
-            val p = sb.getJSONObject("planets").getJSONObject(name)
-            val ratio = p.getDouble("ratio").toFloat().coerceAtMost(1.6f)
-            Row(verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(vertical = 4.dp)) {
-                Text(name, Modifier.width(72.dp), fontSize = 13.sp, color = DeepPurple,
-                     fontWeight = FontWeight.SemiBold)
-                LinearProgressIndicator(
-                    progress = { ratio / 1.6f },
-                    modifier = Modifier.weight(1f).height(9.dp),
-                    color = if (p.getBoolean("strong")) Color(0xFF2E7D32) else Saffron,
-                    trackColor = Color(0xFFF2E3C2))
-                Text(" ${p.getDouble("rupas")}", fontSize = 12.sp, color = Color(0xFF5D4037))
-                Text(if (p.getBoolean("strong")) " ✓" else "", color = Color(0xFF2E7D32))
+fun ChartTabBody(tab: ChartTab, data: JsonObject, style: String, dense: Boolean, onStyle: (String) -> Unit) {
+    val chart = if (tab.kind in setOf("rasi", "navamsa", "bhava")) extractChart(data) else null
+    if (chart != null) {
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+            listOf("south" to R.string.chart_south, "north" to R.string.chart_north).forEachIndexed { i, (k, l) ->
+                SegmentedButton(selected = style == k, onClick = { onStyle(k) }, shape = SegmentedButtonDefaults.itemShape(i, 2)) {
+                    Text(stringResource(l))
+                }
             }
         }
+        SectionCard { ChartDrawing(chart, stringResource(tab.label), style) }
     }
-}
-
-@Composable
-private fun GemsTab(c: JSONObject) {
-    val g = c.getJSONObject("gemstones")
-    val recs = g.getJSONArray("recommended")
-    for (i in 0 until recs.length()) {
-        val r = recs.getJSONObject(i)
-        SectionCard {
-            Text(r.getString("role"), fontSize = 12.sp, color = Color(0xFF8D6E63))
-            Text("💎 ${r.getString("gem")} (${r.getString("hindi")})",
-                 fontWeight = FontWeight.Bold, color = Maroon, fontSize = 17.sp)
-            Text("Planet: ${r.getString("planet")} · ${r.getString("finger")} · " +
-                 "${r.getString("metal")} · ${r.getString("day")}",
-                 fontSize = 13.sp, color = Color(0xFF5D4037))
-            Text("🕉 ${r.getString("mantra")}", fontSize = 13.sp, color = DeepPurple)
+    // Multi-varga responses: draw each division's chart when we can read it.
+    if (tab.kind == "varga") {
+        val vargas = data.child("vargas", "all_vargas", "charts") ?: data
+        vargas.forEach { (name, v) ->
+            val vo = v as? JsonObject ?: return@forEach
+            val c = extractChart(JsonObject(mapOf("chart" to vo))) ?: extractChart(vo)
+            SectionCard(title = name) {
+                if (c != null) ChartDrawing(c, name, style) else JsonView(vo, dense = true)
+            }
         }
+        return
     }
-    SectionCard {
-        Text(g.getString("note"), fontSize = 12.sp, color = Color(0xFF8D6E63))
-    }
+    val rest = if (chart != null) JsonObject(data.filterKeys { it !in setOf("chart", "placements", "positions") }) else data
+    if (rest.isNotEmpty()) SectionCard { JsonView(rest, dense = dense) }
 }
