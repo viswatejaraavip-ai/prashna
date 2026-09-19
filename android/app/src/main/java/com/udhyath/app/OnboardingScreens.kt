@@ -431,7 +431,7 @@ fun ProfileEditScreen(
     var date by rememberSaveable { mutableStateOf(existing?.birth?.date ?: "") }
     var time by rememberSaveable { mutableStateOf(existing?.birth?.time?.takeIf { existing.time_known } ?: "") }
     var timeUnknown by rememberSaveable { mutableStateOf(existing?.let { !it.time_known } ?: false) }
-    var place by remember { mutableStateOf(existing?.birth?.let { Place(it.place, "", it.lat, it.lon, it.tz) }) }
+    var place by remember { mutableStateOf(existing?.birth?.let { Place(it.place, "", it.lat, it.lon, it.tz, label_local = it.place_local) }) }
     var notes by rememberSaveable { mutableStateOf(existing?.notes ?: "") }
     var busy by remember { mutableStateOf(false) }
     var err by remember { mutableStateOf<Throwable?>(null) }
@@ -455,7 +455,8 @@ fun ProfileEditScreen(
                     else -> g.api.createProfile(input)
                 }.let { if (it.id.isBlank() && pid != null) it.copy(id = pid) else it }
                 g.account.upsertLocal(saved)
-                if (onboarding || pid == null && !asClient) g.settings.setActiveProfile(saved.id)
+                // Only onboarding (the first, "self" profile) changes whose chart the app shows.
+                if (onboarding) g.settings.setActiveProfile(saved.id)
                 onDone(saved)
             } catch (e: Exception) { err = e } finally { busy = false }
         }
@@ -577,7 +578,7 @@ fun PlaceSearchField(selected: Place?, label: String = stringResource(R.string.f
     }
     Column {
         if (!editing && selected != null) {
-            OutlinedTextField(selected.label, {}, readOnly = true, label = { Text(label) }, singleLine = true,
+            OutlinedTextField(selected.shown, {}, readOnly = true, label = { Text(label) }, singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
                 leadingIcon = { Icon(Icons.Default.Place, contentDescription = null) },
                 trailingIcon = {
@@ -592,7 +593,7 @@ fun PlaceSearchField(selected: Place?, label: String = stringResource(R.string.f
             trailingIcon = { if (searching) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp) })
         if (failed) Text(stringResource(R.string.err_offline), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
         results.take(8).forEach { p ->
-            Text(p.label, Modifier.fillMaxWidth().clickable {
+            Text(p.shown, Modifier.fillMaxWidth().clickable {
                 focus.clearFocus(); results = emptyList(); editing = false; onPick(p)
             }.padding(vertical = 12.dp, horizontal = 8.dp), style = MaterialTheme.typography.bodyLarge)
             HorizontalDivider()

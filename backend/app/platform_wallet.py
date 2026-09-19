@@ -21,7 +21,7 @@ from . import billing, store
 
 log = logging.getLogger("udhyath.wallet")
 
-PLAY_PACKAGE_NAME = os.environ.get("PLAY_PACKAGE_NAME", "com.udhyath.app")
+PLAY_PACKAGE_NAME = os.environ.get("PLAY_PACKAGE_NAME", "com.prashna.app")
 # product id -> rupees credited
 PLAY_PRODUCTS = {"wallet_100": 100, "wallet_200": 200, "wallet_500": 500, "wallet_1000": 1000}
 TOPUP_RUPEES = [100, 200, 500, 1000]

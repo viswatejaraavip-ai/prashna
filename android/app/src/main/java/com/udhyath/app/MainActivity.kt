@@ -51,7 +51,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
-    /** Deep link waiting for the nav graph (push tap, udhyath:// link). */
+    /** Deep link waiting for the nav graph (push tap, prashna:// link). */
     private val pendingLink = MutableStateFlow<Uri?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -83,7 +83,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun linkFrom(i: Intent?): Uri? {
         if (i == null) return null
-        i.data?.takeIf { it.scheme == "udhyath" }?.let { return it }
+        i.data?.takeIf { it.scheme == "prashna" }?.let { return it }
         // FCM notification messages delivered in background: data keys arrive as extras.
         val extras = i.extras ?: return null
         val map = extras.keySet().associateWith { extras.get(it)?.toString() }
@@ -171,7 +171,9 @@ fun AppRoot(s: AppSettings, pendingLink: MutableStateFlow<Uri?>) {
         bootError = null
         runCatching {
             val u = g.account.refreshMe()
-            if (u.disclaimer_accepted_at != null) { g.settings.setDisclaimerAccepted(true); g.settings.setRoleChosen(true) }
+            if (u.disclaimer_accepted_at != null) g.settings.setRoleChosen(true)
+            // Terms changed since last acceptance -> the consent screen shows again.
+            g.settings.setDisclaimerAccepted(u.terms_accepted)
             // Keep the server's language in step with the device choice.
             if (s.lang != null && u.lang != s.lang.code) runCatching { g.api.patchMe(lang = s.lang.code) }
             g.account.refreshProfiles()
@@ -202,7 +204,7 @@ fun AppRoot(s: AppSettings, pendingLink: MutableStateFlow<Uri?>) {
                 user?.isAstrologer != true && !s.snapshotSeen -> {
                     val pid = s.activeProfileId ?: profiles.first().id
                     SnapshotScreen(pid, onContinue = { askFirst ->
-                        if (askFirst) pendingLink.value = Uri.parse("udhyath://chat?pid=$pid")
+                        if (askFirst) pendingLink.value = Uri.parse("prashna://chat?pid=$pid")
                         scope.launch { g.settings.setSnapshotSeen(true) }
                     })
                 }
@@ -307,11 +309,17 @@ fun MainScaffold(s: AppSettings, user: User, pendingLink: MutableStateFlow<Uri?>
     val current = backStack?.destination?.route
     val showBar = tabs.any { it.route.substringBefore('?') == current?.substringBefore('?') }
 
-    // Deep links from pushes / udhyath:// URIs.
+    // Deep links from pushes / prashna:// URIs.
     val link by pendingLink.collectAsStateWithLifecycle()
     LaunchedEffect(link, nav) {
         val l = link ?: return@LaunchedEffect
         pendingLink.value = null
+        // Debug builds only: prashna://nav/<route>?<args> opens any screen (UI testing).
+        if (BuildConfig.DEBUG && l.host == "nav") {
+            val route = l.path.orEmpty().trimStart('/') + (l.query?.let { "?$it" } ?: "")
+            runCatching { nav.navigate(route) }
+            return@LaunchedEffect
+        }
         runCatching { nav.navigate(l) }
     }
 
@@ -371,13 +379,13 @@ fun AppNavHost(nav: NavHostController, start: String, s: AppSettings, user: User
     fun String?.orNullIfBlank() = this?.takeIf { it.isNotBlank() }
 
     NavHost(nav, startDestination = start) {
-        composable(Routes.HOME, deepLinks = listOf(navDeepLink { uriPattern = "udhyath://home" })) {
+        composable(Routes.HOME, deepLinks = listOf(navDeepLink { uriPattern = "prashna://home" })) {
             HomeScreen(nav)
         }
         composable(Routes.ASK) { SessionsScreen(nav) }
         composable(Routes.CHAT, arguments = listOf(optStr("sid"), optStr("pid"),
             navArgument("voice") { type = NavType.BoolType; defaultValue = false }),
-            deepLinks = listOf(navDeepLink { uriPattern = "udhyath://chat?pid={pid}" })) { e ->
+            deepLinks = listOf(navDeepLink { uriPattern = "prashna://chat?pid={pid}" })) { e ->
             ChatScreen(nav, sid = e.arguments?.getString("sid").orNullIfBlank(),
                 pid = e.arguments?.getString("pid").orNullIfBlank(), startVoice = e.arguments?.getBoolean("voice") == true)
         }
@@ -390,20 +398,20 @@ fun AppNavHost(nav: NavHostController, start: String, s: AppSettings, user: User
                 presetRelation = e.arguments?.getString("relation").orNullIfBlank(),
                 onDone = { back() }, onBack = back)
         }
-        composable(Routes.ALERTS, deepLinks = listOf(navDeepLink { uriPattern = "udhyath://alerts/{pid}" })) { e ->
+        composable(Routes.ALERTS, deepLinks = listOf(navDeepLink { uriPattern = "prashna://alerts/{pid}" })) { e ->
             AlertsScreen(e.arguments?.getString("pid") ?: "", onBack = back)
         }
         composable(Routes.MATCHING) { MatchingScreen(nav, onBack = back) }
         composable(Routes.MUHURTA) { MuhurtaScreen(onBack = back) }
         composable(Routes.RECTIFY) { e -> RectifyScreen(e.arguments?.getString("pid") ?: "", onBack = back) }
         composable(Routes.REPORTS, arguments = listOf(optStr("pid")),
-            deepLinks = listOf(navDeepLink { uriPattern = "udhyath://reports" })) { e ->
+            deepLinks = listOf(navDeepLink { uriPattern = "prashna://reports" })) { e ->
             ReportsScreen(nav, e.arguments?.getString("pid").orNullIfBlank())
         }
-        composable(Routes.REPORT, deepLinks = listOf(navDeepLink { uriPattern = "udhyath://report/{id}" })) { e ->
+        composable(Routes.REPORT, deepLinks = listOf(navDeepLink { uriPattern = "prashna://report/{id}" })) { e ->
             ReportReaderScreen(e.arguments?.getString("id") ?: "", onBack = back)
         }
-        composable(Routes.WALLET, deepLinks = listOf(navDeepLink { uriPattern = "udhyath://wallet" })) {
+        composable(Routes.WALLET, deepLinks = listOf(navDeepLink { uriPattern = "prashna://wallet" })) {
             WalletScreen(nav, onBack = back)
         }
         composable(Routes.MORE) { MoreScreen(nav) }
@@ -417,7 +425,7 @@ fun AppNavHost(nav: NavHostController, start: String, s: AppSettings, user: User
         composable(Routes.REFUNDS, arguments = listOf(optStr("ref"))) { e ->
             RefundsScreen(e.arguments?.getString("ref").orNullIfBlank(), onBack = back)
         }
-        composable(Routes.SUPPORT, deepLinks = listOf(navDeepLink { uriPattern = "udhyath://support" })) { SupportScreen(onBack = back) }
+        composable(Routes.SUPPORT, deepLinks = listOf(navDeepLink { uriPattern = "prashna://support" })) { SupportScreen(onBack = back) }
         composable(Routes.ACCOUNT) { AccountScreen(onBack = back) }
         composable(Routes.CLIENTS) { ClientsScreen(nav) }
         composable(Routes.CLIENT) { e -> ClientDetailScreen(nav, e.arguments?.getString("pid") ?: "") }

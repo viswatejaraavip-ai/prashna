@@ -47,6 +47,8 @@ data class User(
     val plan_expires_at: String? = null,
     val trial_claimed: Boolean = false,
     val disclaimer_accepted_at: String? = null,
+    /** True only when the CURRENT terms version was accepted (server-computed). */
+    val terms_accepted: Boolean = false,
     val notif_prefs: NotifPrefs = NotifPrefs(),
 ) {
     val isAstrologer get() = role == "astrologer"
@@ -94,6 +96,8 @@ data class Birth(
     val lat: Double = 0.0,
     val lon: Double = 0.0,
     val place: String = "",
+    /** Server-provided localized name of `place` (display only). */
+    val place_local: String = "",
 )
 
 @Serializable
@@ -126,7 +130,10 @@ data class Place(
     @JsonNames("lon", "lng") val longitude: Double = 0.0,
     @JsonNames("tz") val tz_name: String = "Asia/Kolkata",
     @kotlinx.serialization.SerialName("label") val serverLabel: String? = null,
+    val label_local: String? = null,
 ) {
+    /** What the user sees; `label` stays English because it is stored and resolved server-side. */
+    val shown: String get() = label_local?.takeIf { it.isNotBlank() } ?: label
     val label: String get() = serverLabel?.takeIf { it.isNotBlank() } ?: if (region.isBlank()) name else "$name, $region"
 }
 
@@ -147,6 +154,7 @@ data class SessionInfo(
     val mode: String = "text",
     val created_at: String = "",
     val summary: String? = null,
+    val title: String? = null,
     val query_count: Int = 0,
 )
 

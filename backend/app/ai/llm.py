@@ -160,7 +160,8 @@ def flash(name: str, system: str, user: str, *, max_output_tokens: int,
                                                     config=config)
             break
         except Exception as exc:
-            if i + 1 < len(fallbacks) and "thinking" in str(exc).lower():
+            msg = str(exc)
+            if i + 1 < len(fallbacks) and ("thinking" in msg.lower() or "INVALID_ARGUMENT" in msg):
                 log.warning("gemini rejected thinking config %s: %s", cfg, exc)
                 continue
             raise

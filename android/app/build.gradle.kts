@@ -19,8 +19,8 @@ if (!googleServicesJson.exists()) {
         |
         |  Missing android/app/google-services.json
         |
-        |  Udhyath uses Firebase (phone OTP, Google sign-in, FCM). Download the
-        |  config for Android package 'com.udhyath.app' from the Firebase console
+        |  Prashna uses Firebase (phone OTP, Google sign-in, FCM). Download the
+        |  config for Android package 'com.prashna.app' from the Firebase console
         |  (Project settings > Your apps) and save it as android/app/google-services.json.
         |  Full steps: docs/launch/ANDROID.md ("Firebase").
         |
@@ -42,7 +42,7 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.udhyath.app"
+        applicationId = "com.prashna.app"
         minSdk = 26
         targetSdk = 36
         versionCode = 2
@@ -72,7 +72,10 @@ android {
             buildConfigField("String", "API_BASE", "\"$apiBase\"")
         }
         release {
-            buildConfigField("String", "API_BASE", "\"https://api.udhyath.com\"")
+            // Live Cloud Run URL until a custom domain is mapped; override with -PreleaseApiBase=...
+            val releaseApiBase = (project.findProperty("releaseApiBase") as String?)
+                ?: "https://your-service.run.app"
+            buildConfigField("String", "API_BASE", "\"$releaseApiBase\"")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(

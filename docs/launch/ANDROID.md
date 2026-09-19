@@ -1,6 +1,6 @@
 # Udhyath Android: setup, build and release
 
-The app lives in `android/` (Kotlin, Jetpack Compose, Material 3). Package id: `com.udhyath.app`.
+The app lives in `android/` (Kotlin, Jetpack Compose, Material 3). Package id: `com.prashna.app`.
 
 ## 1. Toolchain
 
@@ -28,7 +28,7 @@ The WhatsApp support number is `BuildConfig.SUPPORT_WHATSAPP` (placeholder `9190
 `android/app/google-services.json` is **not committed**. It is gitignored. If it is missing, the build stops with instructions.
 
 1. Create a Firebase project, or use the one the backend uses (it must be the same project, because the backend verifies the Firebase ID tokens).
-2. Add an Android app with package **`com.udhyath.app`**.
+2. Add an Android app with package **`com.prashna.app`**.
 3. Add the **SHA-1 and SHA-256** fingerprints of every signing key. Phone auth and Google sign-in both depend on them:
    - Debug key: `keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android -keypass android`
    - Upload key: run the same command against your release keystore.
@@ -58,7 +58,7 @@ Notification channels: `daily`, `transits`, `reports`, `account`. The default ch
 
 ## 3. Play Console
 
-1. Create the app with package `com.udhyath.app`, default language Hindi. Add listings in te-IN, ta-IN, kn-IN and ml-IN.
+1. Create the app with package `com.prashna.app`, default language Hindi. Add listings in te-IN, ta-IN, kn-IN and ml-IN.
 2. **In-app products** (Monetize → Products → In-app products). All of them are **consumable**, and the server consumes them after verifying:
 
    | Product id | Price |

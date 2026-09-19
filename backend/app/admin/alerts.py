@@ -95,7 +95,7 @@ def run_cost_watch(hours: int = 1) -> Dict:
         return out
 
     base = os.environ.get("PUBLIC_BASE_URL", "").rstrip("/")
-    text = "Udhyath alert (last %dh): %s" % (hours, "; ".join(res["problems"]))
+    text = "Prashna alert (last %dh): %s" % (hours, "; ".join(res["problems"]))
     if base:
         text += "\n%s/admin#/cost" % base
     out["sent"] = post_webhook(text)

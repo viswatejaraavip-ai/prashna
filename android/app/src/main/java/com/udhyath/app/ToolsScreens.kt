@@ -22,6 +22,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import java.time.LocalDate
 
@@ -81,6 +83,8 @@ fun MatchingScreen(nav: NavHostController, onBack: () -> Unit, presetA: String? 
         BigButton(stringResource(R.string.matching_run), onClick = { run() }, enabled = a != null && b != null, busy = result == Load.Loading)
         result?.let { r ->
             LoadView(r, onRetry = { run() }) { data ->
+                val view = data.child("view")
+                if (view != null) ViewSections(view, dense = false) else {
                 val score = data.num("total", "score", "guna_score", "points")
                 val max = data.num("max", "out_of", "max_score") ?: 36.0
                 val verdict = data.str("verdict", "summary", "result")
@@ -90,14 +94,14 @@ fun MatchingScreen(nav: NavHostController, onBack: () -> Unit, presetA: String? 
                     if (verdict != null) Text(verdict, style = MaterialTheme.typography.bodyLarge)
                 }
                 val rest = JsonObject(data.filterKeys { it !in setOf("total", "score", "guna_score", "points", "max", "out_of", "max_score", "verdict", "summary", "result") })
-                if (rest.isNotEmpty()) SectionCard { JsonView(rest) }
+                }
                 BigButton(stringResource(R.string.matching_pdf), icon = Icons.Default.PictureAsPdf, secondary = true, busy = pdfBusy, onClick = {
                     val pa = a ?: return@BigButton; val pb = b ?: return@BigButton
                     pdfBusy = true; pdfErr = null
                     scope.launch {
                         try {
                             val bytes = g.api.download(g.api.matchingPdf(pa.id, pb.id, brand = user?.isAstrologer == true))
-                            shareFile(ctx, bytes, "udhyath-matching.pdf", "application/pdf", ctx.getString(R.string.share_matching_text))
+                            shareFile(ctx, bytes, "prashna-matching.pdf", "application/pdf", ctx.getString(R.string.share_matching_text))
                         } catch (e: Exception) { pdfErr = e } finally { pdfBusy = false }
                     }
                 })
@@ -144,16 +148,16 @@ fun MuhurtaScreen(onBack: () -> Unit) {
     var event by remember { mutableStateOf("marriage") }
     var from by remember { mutableStateOf(LocalDate.now().toString()) }
     var to by remember { mutableStateOf(LocalDate.now().plusDays(60).toString()) }
-    var place by remember(active?.id) { mutableStateOf(active?.birth?.let { Place(it.place, "", it.lat, it.lon, it.tz) }) }
+    var place by remember(active?.id) { mutableStateOf(active?.birth?.let { Place(it.place, "", it.lat, it.lon, it.tz, label_local = it.place_local) }) }
     var personal by remember { mutableStateOf(true) }
-    var result by remember { mutableStateOf<Load<List<JsonElement>>?>(null) }
+    var result by remember { mutableStateOf<Load<JsonElement>?>(null) }
 
     fun run() {
         val p = place ?: return
         result = Load.Loading
         scope.launch {
             result = runCatching {
-                g.api.muhurta(event, from, to, if (personal) active?.id else null, p.latitude, p.longitude, p.tz_name).itemsList("windows", "muhurtas")
+                g.api.muhurta(event, from, to, if (personal) active?.id else null, p.latitude, p.longitude, p.tz_name)
             }.fold({ Load.Ok(it) }, { Load.Err(it) })
         }
     }
@@ -173,7 +177,10 @@ fun MuhurtaScreen(onBack: () -> Unit) {
         }
         BigButton(stringResource(R.string.muhurta_find), onClick = { run() }, enabled = place != null && from <= to, busy = result == Load.Loading)
         result?.let { r ->
-            LoadView(r, onRetry = { run() }) { list ->
+            LoadView(r, onRetry = { run() }) { res ->
+                val view = (res as? JsonObject)?.child("view")
+                if (view != null) { ViewSections(view, dense = false); return@LoadView }
+                val list = res.itemsList("windows", "muhurtas")
                 if (list.isEmpty()) EmptyBox(stringResource(R.string.muhurta_none))
                 list.forEachIndexed { i, w ->
                     val o = w.obj()
@@ -188,7 +195,6 @@ fun MuhurtaScreen(onBack: () -> Unit) {
                         }
                         o?.str("quality", "reason", "description", "summary")?.let { Text(it) }
                         o?.num("score")?.let { Text(stringResource(R.string.score_value, it.toInt()), color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                        if (o == null) JsonView(w)
                     }
                 }
             }
@@ -255,8 +261,10 @@ fun RectifyScreen(pid: String, onBack: () -> Unit) {
                             Column(Modifier.weight(1f)) {
                                 Text(time?.let { formatTime(it.take(5)) } ?: c.displayText(), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                                 o?.num("score")?.let { Text(stringResource(R.string.score_value, it.toInt())) }
-                                o?.str("lagna", "ascendant")?.let { Text("${stringResource(R.string.k_lagna)}: $it") }
-                                o?.str("reason", "notes", "description")?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+                                o?.str("lagna_local", "lagna", "ascendant")?.let { Text("${stringResource(R.string.k_lagna)}: $it") }
+                                val reasons = (o?.get("reasons") as? JsonArray)?.mapNotNull { (it as? JsonPrimitive)?.content }
+                                (reasons?.joinToString("\n") ?: o?.str("reason", "notes", "description"))
+                                    ?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
                             }
                             if (time != null && profile != null) TextButton(onClick = {
                                 scope.launch {

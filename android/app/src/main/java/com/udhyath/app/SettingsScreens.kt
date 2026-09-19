@@ -351,7 +351,7 @@ fun AccountScreen(onBack: () -> Unit) {
             BigButton(stringResource(R.string.account_export_cta), icon = Icons.Default.Download, busy = exporting, onClick = {
                 exporting = true; err = null; exportMsg = null
                 scope.launch {
-                    runCatching { g.api.exportData() }.onSuccess { pendingJson = it; saver.launch("udhyath-my-data.json") }.onFailure { err = it }
+                    runCatching { g.api.exportData() }.onSuccess { pendingJson = it; saver.launch("prashna-my-data.json") }.onFailure { err = it }
                     exporting = false
                 }
             })

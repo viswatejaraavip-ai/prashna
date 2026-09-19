@@ -5,10 +5,11 @@ import io
 import urllib.request
 from typing import Dict, Optional
 
+from .. import store
 from .common import fmt_date, t
 from .textrender import font_path
 
-BRAND_NAME = "Udhyath"
+BRAND_NAME = "Prashna"  # default; per-language via store.brand()
 _MAROON = (122, 28, 28)
 _GOLD = (201, 146, 42)
 _INK = (40, 30, 30)
@@ -62,7 +63,7 @@ def matching_pdf(result: Dict, lang: str, brand: Optional[Dict] = None,
     pdf = _pdf(lang)
     pdf.add_page()
     brand = brand or {}
-    title_brand = brand.get("display_name") or BRAND_NAME
+    title_brand = brand.get("display_name") or store.brand(lang)
 
     # Header band
     pdf.set_fill_color(*_MAROON)
@@ -187,9 +188,9 @@ def matching_pdf(result: Dict, lang: str, brand: Optional[Dict] = None,
     footer_lines = [brand.get("footer") or "", t(lang, "labels.disclaimer")]
     if brand.get("display_name"):
         footer_lines.append("%s %s · %s" % (t(lang, "labels.prepared_by"),
-                                            brand["display_name"], BRAND_NAME))
+                                            brand["display_name"], store.brand(lang)))
     else:
-        footer_lines.append(BRAND_NAME)
+        footer_lines.append(store.brand(lang))
     for line in footer_lines:
         if line:
             _font_for(pdf, line, "", 8.5)

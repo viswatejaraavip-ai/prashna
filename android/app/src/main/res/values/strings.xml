@@ -7,7 +7,7 @@
 -->
 <resources>
     <!-- Brand -->
-    <string name="app_name" translatable="false">Udhyath</string>
+    <string name="app_name">Prashna</string>
     <string name="lang_prompt_all" translatable="false">भाषा चुनें · భాషను ఎంచుకోండి · மொழியைத் தேர்ந்தெடுக்கவும் · ಭಾಷೆ ಆಯ್ಕೆಮಾಡಿ · ഭാഷ തിരഞ്ഞെടുക്കുക · Choose language</string>
     <string name="tagline">Vedic astrology in your own language</string>
 
@@ -43,7 +43,7 @@
     <string name="err_session">Your session has ended. Please sign in again.</string>
     <string name="offline_banner">You are offline</string>
     <string name="maintenance_title">We\'ll be back shortly</string>
-    <string name="maintenance_default">Udhyath is being updated. Please try again in a few minutes.</string>
+    <string name="maintenance_default">Prashna is being updated. Please try again in a few minutes.</string>
 
     <!-- Accessibility -->
     <string name="cd_back">Back</string>
@@ -84,7 +84,7 @@
     <string name="auth_terms_note">By continuing you agree to our Terms and Privacy Policy.</string>
 
     <!-- Role -->
-    <string name="role_title">How will you use Udhyath?</string>
+    <string name="role_title">How will you use Prashna?</string>
     <string name="role_personal">For myself and my family</string>
     <string name="role_personal_desc">Daily guidance, charts, matching and answers for your family.</string>
     <string name="role_astrologer">I am an astrologer</string>
@@ -92,8 +92,8 @@
 
     <!-- Disclaimer & legal -->
     <string name="disclaimer_title">Disclaimer</string>
-    <string name="disclaimer_fallback">Udhyath offers astrological guidance based on traditional Vedic methods. It is not a substitute for medical, legal, financial or psychological advice. Please use your own judgement for important decisions.</string>
-    <string name="disclaimer_agree">I have read and understood this</string>
+    <string name="disclaimer_fallback">Prashna offers astrological guidance based on traditional Vedic methods. It is not a substitute for medical, legal, financial or psychological advice. Please use your own judgement for important decisions.</string>
+    <string name="disclaimer_agree">I have read and agree to the Terms of Service, Privacy Policy and Disclaimer</string>
     <string name="legal_terms">Terms of use</string>
     <string name="legal_privacy">Privacy policy</string>
     <string name="legal_refund">Refund policy</string>
@@ -159,9 +159,9 @@
     <string name="qa_rectify">Birth time</string>
     <string name="qa_family">Family</string>
     <string name="share_whatsapp">Share on WhatsApp</string>
-    <string name="share_daily_text">Today\'s panchanga from Udhyath</string>
-    <string name="share_chart_text">My birth chart from Udhyath</string>
-    <string name="share_matching_text">Horoscope matching report from Udhyath</string>
+    <string name="share_daily_text">Today\'s panchanga from Prashna</string>
+    <string name="share_chart_text">My birth chart from Prashna</string>
+    <string name="share_matching_text">Horoscope matching report from Prashna</string>
     <string name="family_title">Family</string>
     <string name="family_add">Add person</string>
     <string name="family_empty">Add your family members to see their charts and daily guidance.</string>
@@ -424,7 +424,7 @@
     <string name="settings_legal">Legal</string>
     <string name="settings_privacy">Privacy and data</string>
     <string name="logout">Sign out</string>
-    <string name="logout_confirm">Sign out of Udhyath on this phone?</string>
+    <string name="logout_confirm">Sign out of Prashna on this phone?</string>
 
     <!-- Notifications -->
     <string name="notif_title">Notifications</string>
@@ -434,7 +434,7 @@
     <string name="notif_transits_desc">Sade Sati, dasha changes and eclipses</string>
     <string name="notif_promos">Offers</string>
     <string name="notif_promos_desc">Occasional festival offers</string>
-    <string name="notif_blocked">Notifications are turned off for Udhyath on this phone.</string>
+    <string name="notif_blocked">Notifications are turned off for Prashna on this phone.</string>
     <string name="notif_open_settings">Open settings</string>
     <string name="notif_perm_title">Get your daily panchanga?</string>
     <string name="notif_perm_body">Allow notifications for the daily forecast, transit alerts and when your report is ready.</string>
@@ -464,7 +464,7 @@
     <string name="support_message">Describe the problem</string>
     <string name="support_sent">Thank you. We have received your message.</string>
     <string name="support_whatsapp">Chat with us on WhatsApp</string>
-    <string name="support_whatsapp_text">Hello Udhyath team, I need help. My account id: %1$s</string>
+    <string name="support_whatsapp_text">Hello Prashna team, I need help. My account id: %1$s</string>
     <string name="support_mine">My tickets</string>
     <string name="support_none">No tickets yet.</string>
     <string name="support_open">Open</string>

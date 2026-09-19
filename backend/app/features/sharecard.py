@@ -5,6 +5,7 @@ import io
 from datetime import date
 from typing import Dict, List
 
+from .. import store
 from .common import fmt_date, jc, sign, t, templates
 from .textrender import draw_text, wrap
 
@@ -25,7 +26,7 @@ _NORTH = {1: (0.5, 0.27), 2: (0.25, 0.11), 3: (0.11, 0.25), 4: (0.27, 0.5),
           9: (0.89, 0.75), 10: (0.73, 0.5), 11: (0.89, 0.25), 12: (0.75, 0.11)}
 
 
-def _canvas():
+def _canvas(lang: str = "en"):
     from PIL import Image, ImageDraw
     img = Image.new("RGBA", (W, H), BG + (255,))
     d = ImageDraw.Draw(img)
@@ -33,7 +34,7 @@ def _canvas():
     d.rectangle([0, 150, W, 156], fill=GOLD)
     d.rectangle([0, H - 110, W, H], fill=MAROON)
     d.rectangle([0, H - 116, W, H - 110], fill=GOLD)
-    draw_text(img, (W / 2, 28), "Udhyath", 64, (255, 255, 255), "en", bold=True, anchor="ma")
+    draw_text(img, (W / 2, 28), store.brand(lang), 64, (255, 255, 255), lang, bold=True, anchor="ma")
     return img, d
 
 
@@ -95,7 +96,7 @@ def _north_chart(img, d, x0, y0, size, houses: Dict[int, List[str]], lagna: int,
 
 
 def chart_card(profile: Dict, chart: Dict, snap: Dict, lang: str) -> bytes:
-    img, d = _canvas()
+    img, d = _canvas(lang)
     abbr = templates(lang)["planet_abbr"]
     lagna = chart["ascendant"]["sign_index"]
     by_sign: Dict[int, List[str]] = {lagna: [abbr["Lagna"]]}
@@ -125,7 +126,7 @@ def chart_card(profile: Dict, chart: Dict, snap: Dict, lang: str) -> bytes:
 
 
 def daily_card(name: str, day: date, forecast: Dict, pan: Dict, lang: str) -> bytes:
-    img, d = _canvas()
+    img, d = _canvas(lang)
     draw_text(img, (W / 2, 190), forecast["title"], 44, MAROON, lang, bold=True, anchor="ma")
     colour = RATING_COLOURS.get(forecast["rating"], GOLD)
     d.rounded_rectangle([140, 280, W - 140, 370], radius=44, fill=colour)

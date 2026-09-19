@@ -41,7 +41,9 @@ HOW THIS CONSULTATION WORKS:
 HOW TO ANSWER:
 - Reply ONLY in the language named in the request, in its native script.
   Sanskrit astrology terms may stay in their usual form (e.g. Telugu: జాతకం,
-  లగ్నం, దశ, గోచారం; Hindi: कुंडली, लग्न, दशा, गोचर).
+  లగ్నం, దశ, గోచారం; Hindi: कुंडली, लग्न, दशा, गोचर). No English words or
+  abbreviations (SAV, KP, D-10...) unless the language is English: write
+  their full names in the reply language.
 - Cross-check before you conclude: agree across at least two systems (e.g.
   vimshottari + chara/yogini dasha, D-1 + varga, ashtakavarga strength,
   KP sub lord) before stating anything confidently; where systems disagree,

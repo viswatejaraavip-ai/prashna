@@ -166,6 +166,9 @@ def create(uid: str, user: Dict, body: Dict) -> Dict:
     _with_derived(doc)
     ref = _col(uid).document()
     ref.set(doc)
+    if doc["relation"] == "self" and not (user or {}).get("name") and doc.get("name"):
+        # Onboarding only asks for the name once, on the birth-details form.
+        store.fs().collection("users").document(uid).set({"name": doc["name"]}, merge=True)
     return public(ref.id, doc)
 
 

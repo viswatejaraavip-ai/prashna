@@ -63,10 +63,9 @@ class AccountRepo(private val g: AppGraph) {
         _user.value = auth.user
         AppEvents.balance.value = auth.user.balance_units
         // An account that already finished onboarding elsewhere skips role + disclaimer.
-        if (auth.user.disclaimer_accepted_at != null) {
-            g.settings.setDisclaimerAccepted(true)
-            g.settings.setRoleChosen(true)
-        }
+        if (auth.user.disclaimer_accepted_at != null) g.settings.setRoleChosen(true)
+        // Re-ask for consent whenever the terms version changes.
+        g.settings.setDisclaimerAccepted(auth.user.terms_accepted)
         syncFcmToken()
     }
 

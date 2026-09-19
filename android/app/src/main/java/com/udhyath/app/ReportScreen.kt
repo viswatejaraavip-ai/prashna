@@ -163,7 +163,7 @@ private fun TeaserBody(t: JsonObject) {
     val title = chapter?.str("title") ?: t.str("title")
     val body = chapter?.str("content", "text") ?: t.str("teaser", "content", "text")
     if (title != null) Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-    if (body != null) MarkdownText(body) else JsonView(t)
+    if (body != null) MarkdownText(body)
     t.child("full_report")?.let { fr ->
         val chapters = fr.list("chapters")
         if (chapters != null) {
@@ -230,7 +230,7 @@ fun ReportReaderScreen(id: String, onBack: () -> Unit) {
         scope.launch {
             try {
                 val bytes = g.api.download(g.api.reportPdf(id))
-                if (share) shareFile(ctx, bytes, "udhyath-report.pdf", "application/pdf") else viewFile(ctx, bytes, "udhyath-report.pdf", "application/pdf")
+                if (share) shareFile(ctx, bytes, "prashna-report.pdf", "application/pdf") else viewFile(ctx, bytes, "prashna-report.pdf", "application/pdf")
             } catch (e: Exception) { pdfErr = e } finally { pdfBusy = false }
         }
     }

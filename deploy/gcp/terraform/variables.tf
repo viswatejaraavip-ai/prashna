@@ -78,7 +78,7 @@ variable "admin_emails" {
 
 variable "play_package_name" {
   type    = string
-  default = "com.udhyath.app"
+  default = "com.prashna.app"
 }
 
 variable "default_lang" {

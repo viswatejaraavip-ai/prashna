@@ -349,6 +349,10 @@ def _finish(uid, session, question, st, stages, b, t0, trace_id, lang, mode,
         _safe(repo.add_message, sid, "user", question or "", 0, trace_id)
         _safe(repo.add_message, sid, "assistant", st["reply"], st["charged"], trace_id)
         upd = {"updated_at": store.now_iso()}
+        if question and not session.get("title"):
+            # Shown in the conversation list: the user's own words, in their
+            # language (the running `summary` is internal English memory).
+            upd["title"] = question.strip()[:140]
         if answered:
             upd["query_count"] = ("incr", 1)
             upd["summary"] = new_summary or ""

@@ -21,6 +21,12 @@ JWT_EXPIRY_HOURS = int(os.environ.get("JWT_EXPIRY_HOURS", str(24 * 30)))
 ADMIN_EMAILS = {e.strip().lower() for e in os.environ.get("ADMIN_EMAILS", "").split(",")
                 if e.strip()}
 LANGS = ("hi", "te", "ta", "kn", "ml", "en")
+# The app's name as written in each language's script.
+BRAND = {"hi": "प्रश्न", "te": "ప్రశ్న", "ta": "பிரஷ்னா", "kn": "ಪ್ರಶ್ನ", "ml": "പ്രശ്ന", "en": "Prashna"}
+
+
+def brand(lang: str) -> str:
+    return BRAND.get(lang, BRAND["en"])
 DEFAULT_LANG = os.environ.get("DEFAULT_LANG", "te")
 IST = timezone(timedelta(hours=5, minutes=30))
 

@@ -59,6 +59,10 @@ def public_user(user: Dict) -> Dict:
     out = {k: v for k, v in (user or {}).items() if k not in _PRIVATE_USER_FIELDS}
     out["plan"] = billing.effective_plan(user or {})
     out.setdefault("notif_prefs", {"daily": True, "transits": True, "promos": False})
+    from .platform_legal import TERMS_VERSION
+    out["terms_version_required"] = TERMS_VERSION
+    out["terms_accepted"] = bool((user or {}).get("disclaimer_accepted_at")) and \
+        str((user or {}).get("disclaimer_version") or "") == TERMS_VERSION
     return out
 
 

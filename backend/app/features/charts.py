@@ -3,6 +3,7 @@
 from datetime import datetime, timezone
 from typing import Dict, Optional
 
+from . import views
 from .common import birth_dict, invalid, is_pro, forbidden, japi, jc
 
 BASIC_KINDS = ("rasi", "navamsa", "varga", "bhava", "dashas", "panchanga",
@@ -82,7 +83,8 @@ def chart(profile: Dict, user: Dict, kind: str, division: Optional[str], lang: s
     approx = (not profile.get("time_known", True)) and kind in LAGNA_DEPENDENT
     return {"profile_id": profile.get("id"), "kind": kind, "division": div,
             "time_known": profile.get("time_known", True),
-            "approximate": approx, "data": data}
+            "approximate": approx, "data": data,
+            "view": views.build(kind, div, data, lang)}
 
 
 def pro_bundle(profile: Dict, lang: str) -> Dict:
@@ -96,7 +98,7 @@ def pro_bundle(profile: Dict, lang: str) -> Dict:
                           "running": japi._active_chain(tl["mahadashas"], now),
                           "mahadashas": tl["mahadashas"]}
     dashas["vimshottari_now"] = japi.current_dasha(birth)
-    return {
+    out = {
         "profile_id": profile.get("id"),
         "time_known": profile.get("time_known", True),
         "approximate": not profile.get("time_known", True),
@@ -110,3 +112,19 @@ def pro_bundle(profile: Dict, lang: str) -> Dict:
         "yogas": japi.yoga_analysis(birth),
         "doshas": japi.dosha_analysis(birth),
     }
+    out["view"] = pro_bundle_view(out, lang)
+    return out
+
+
+def pro_bundle_view(b: Dict, lang: str) -> Dict:
+    """One localized view: rasi chart + all 16 vargas + every table."""
+    rasi = views.build("rasi", None, b["rasi"], lang)
+    vargas = views.build("varga", "all", {"charts": b["vargas"]}, lang)
+    vim = dict(b["dashas"].get("vimshottari") or {})
+    vim["current"] = b["dashas"].get("vimshottari_now") or {}
+    sections = list(rasi.get("sections") or [])
+    for kind, data in (("dashas", vim), ("bhava", b["bhava_chalit"]), ("kp", b["kp"]),
+                       ("shadbala", b["shadbala"]), ("ashtakavarga", b["ashtakavarga"]),
+                       ("yogas", b["yogas"]), ("doshas", b["doshas"])):
+        sections += views.build(kind, None, data, lang).get("sections") or []
+    return {"chart": rasi.get("chart"), "charts": vargas.get("charts") or [], "sections": sections}

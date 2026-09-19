@@ -268,7 +268,9 @@ fun ChartsScreen(nav: NavHostController, pid: String?, showBack: Boolean) {
     val astro = user?.isAstrologer == true
     val profile = profiles.firstOrNull { it.id == (pid ?: settings.activeProfileId) } ?: profiles.firstOrNull { it.relation != "client" }
     val tabs = if (astro) BASIC_TABS + PRO_TABS else BASIC_TABS
-    var tabIdx by rememberSaveableInt(0)
+    // Always open on Rasi (and again when switching person): a restored index
+    // would be off-screen in the scrollable tab row with no visible selection.
+    var tabIdx by remember(profile?.id) { mutableStateOf(0) }
     val tab = tabs[tabIdx.coerceIn(0, tabs.lastIndex)]
     val state by vm.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
@@ -283,7 +285,7 @@ fun ChartsScreen(nav: NavHostController, pid: String?, showBack: Boolean) {
                 sharing = true
                 scope.launch {
                     runCatching { g.api.download(g.api.shareCard(profile.id, "chart")) }
-                        .onSuccess { shareFile(ctx, it, "udhyath-chart.png", "image/png", ctx.getString(R.string.share_chart_text)) }
+                        .onSuccess { shareFile(ctx, it, "prashna-chart.png", "image/png", ctx.getString(R.string.share_chart_text)) }
                     sharing = false
                 }
             }) { Icon(Icons.Default.Share, contentDescription = stringResource(R.string.cd_share_chart)) }
@@ -350,6 +352,27 @@ fun ProLockedCard(onGetPro: () -> Unit) {
 
 @Composable
 fun ChartTabBody(tab: ChartTab, data: JsonObject, style: String, dense: Boolean, onStyle: (String) -> Unit) {
+    // Current server: a display-ready, localized `view`.
+    data.child("view")?.let { view ->
+        val main = chartFromView(view.child("chart"))
+        val many = (view["charts"] as? JsonArray)?.mapNotNull { el ->
+            val o = el as? JsonObject ?: return@mapNotNull null
+            chartFromView(o.child("chart"))?.let { (o.str("title") ?: "") to it }
+        }.orEmpty()
+        if (main != null || many.isNotEmpty()) {
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                listOf("south" to R.string.chart_south, "north" to R.string.chart_north).forEachIndexed { i, (k, l) ->
+                    SegmentedButton(selected = style == k, onClick = { onStyle(k) }, shape = SegmentedButtonDefaults.itemShape(i, 2)) {
+                        Text(stringResource(l))
+                    }
+                }
+            }
+        }
+        if (main != null) SectionCard { ChartDrawing(main, stringResource(tab.label), style) }
+        many.forEach { (title, c) -> SectionCard(title = title) { ChartDrawing(c, title, style) } }
+        ViewSections(view, dense)
+        return
+    }
     val chart = if (tab.kind in setOf("rasi", "navamsa", "bhava")) extractChart(data) else null
     if (chart != null) {
         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
@@ -368,11 +391,10 @@ fun ChartTabBody(tab: ChartTab, data: JsonObject, style: String, dense: Boolean,
             val vo = v as? JsonObject ?: return@forEach
             val c = extractChart(JsonObject(mapOf("chart" to vo))) ?: extractChart(vo)
             SectionCard(title = name) {
-                if (c != null) ChartDrawing(c, name, style) else JsonView(vo, dense = true)
+                if (c != null) ChartDrawing(c, name, style)
             }
         }
         return
     }
     val rest = if (chart != null) JsonObject(data.filterKeys { it !in setOf("chart", "placements", "positions") }) else data
-    if (rest.isNotEmpty()) SectionCard { JsonView(rest, dense = dense) }
 }

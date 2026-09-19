@@ -29,6 +29,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonArray
 
 // ===========================================================================
 // Client list with search + quick add
@@ -66,14 +67,14 @@ fun ClientsScreen(nav: NavHostController) {
                 is Load.Ok -> {
                     val needle = q.trim().lowercase()
                     val list = s.data.filter { needle.isEmpty() || it.name.lowercase().contains(needle) ||
-                        it.birth.place.lowercase().contains(needle) || it.notes.orEmpty().lowercase().contains(needle) }
+                        (it.birth.place + " " + it.birth.place_local).lowercase().contains(needle) || it.notes.orEmpty().lowercase().contains(needle) }
                         .sortedBy { it.name.lowercase() }
                     if (list.isEmpty()) EmptyBox(stringResource(if (s.data.isEmpty()) R.string.clients_empty else R.string.clients_no_match))
                     LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(list, key = { it.id }) { c ->
                             SectionCard(Modifier.clickable { nav.navigate("client/${c.id}") }) {
                                 Text(c.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                                Text("${formatDate(c.birth.date)} · ${if (c.time_known) formatTime(c.birth.time) else stringResource(R.string.time_unknown_short)} · ${c.birth.place}",
+                                Text("${formatDate(c.birth.date)} · ${if (c.time_known) formatTime(c.birth.time) else stringResource(R.string.time_unknown_short)} · ${c.birth.place_local.ifBlank { c.birth.place }}",
                                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 c.notes?.takeIf { it.isNotBlank() }?.let { Text(it, maxLines = 2, style = MaterialTheme.typography.bodyMedium) }
                             }
@@ -110,7 +111,7 @@ fun ClientDetailScreen(nav: NavHostController, pid: String) {
             SectionCard {
                 KeyValue(stringResource(R.string.k_date), formatDate(c.birth.date))
                 KeyValue(stringResource(R.string.k_time), if (c.time_known) formatTime(c.birth.time) else stringResource(R.string.time_unknown_short))
-                KeyValue(stringResource(R.string.field_birth_place), c.birth.place)
+                KeyValue(stringResource(R.string.field_birth_place), c.birth.place_local.ifBlank { c.birth.place })
             }
             val tools = listOf(
                 Triple(Icons.Default.WbSunny, R.string.qa_charts) { nav.navigate(Routes.charts(c.id)) },
@@ -164,46 +165,36 @@ fun ProBundleScreen(nav: NavHostController, pid: String) {
     ScreenScaffold(stringResource(R.string.pro_bundle), onBack = { nav.popBackStack() }) {
         if (user?.isPro != true) { ProLockedCard { nav.navigate(Routes.PRO) }; return@ScreenScaffold }
         LoadView(state, onRetry = { tick++ }) { bundle ->
-            bundle.forEach { (k, v) ->
-                var open by remember(k) { mutableStateOf(k.contains("varga") || k == "kp") }
+            val view = bundle.child("view")
+            if (view == null) { EmptyBox(stringResource(R.string.err_server)); return@LoadView }
+            chartFromView(view.child("chart"))?.let { c ->
+                SectionCard(title = stringResource(R.string.tab_rasi)) { ChartDrawing(c, stringResource(R.string.tab_rasi), settings.chartStyle) }
+            }
+            val vargas = (view["charts"] as? JsonArray)?.mapNotNull { el ->
+                val o = el as? JsonObject ?: return@mapNotNull null
+                chartFromView(o.child("chart"))?.let { (o.str("title") ?: "") to it }
+            }.orEmpty()
+            if (vargas.isNotEmpty()) {
+                var open by remember { mutableStateOf(true) }
                 SectionCard {
                     Row(Modifier.fillMaxWidth().clickable { open = !open }, verticalAlignment = Alignment.CenterVertically) {
-                        Text(proSectionLabel(k), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
+                        Text(stringResource(R.string.tab_vargas), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.secondary, modifier = Modifier.weight(1f))
                         Icon(if (open) Icons.Default.ExpandLess else Icons.Default.ExpandMore, contentDescription = null)
                     }
-                    if (open) {
-                        val vo = v as? JsonObject
-                        if (k.contains("varga") && vo != null) {
-                            // Two-up grid of divisional charts.
-                            vo.entries.chunked(2).forEach { row ->
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    row.forEach { (name, chart) ->
-                                        Box(Modifier.weight(1f)) {
-                                            val c = (chart as? JsonObject)?.let { extractChart(JsonObject(mapOf("chart" to it))) ?: extractChart(it) }
-                                            if (c != null) ChartDrawing(c, name, settings.chartStyle) else Column { Text(name); JsonView(chart, dense = true) }
-                                        }
-                                    }
-                                    if (row.size == 1) Spacer(Modifier.weight(1f))
-                                }
-                            }
-                        } else JsonView(v, dense = true)
+                    if (open) vargas.chunked(2).forEach { row ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            row.forEach { (name, c) -> Box(Modifier.weight(1f)) { ChartDrawing(c, name, settings.chartStyle) } }
+                            if (row.size == 1) Spacer(Modifier.weight(1f))
+                        }
                     }
                 }
             }
+            ViewSections(view, dense = true)
         }
     }
 }
 
-@Composable
-private fun proSectionLabel(k: String): String = when {
-    k.contains("varga") -> stringResource(R.string.tab_vargas)
-    k == "kp" -> stringResource(R.string.tab_kp)
-    k.contains("shadbala") -> stringResource(R.string.tab_shadbala)
-    k.contains("ashtaka") -> stringResource(R.string.tab_ashtakavarga)
-    k.contains("dasha") -> stringResource(R.string.tab_dashas)
-    else -> keyLabel(k)
-}
 
 // ===========================================================================
 // Brand settings (white-label PDFs)

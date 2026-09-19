@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Hindi (हिन्दी) strings. Must contain every translatable key from values/strings.xml. -->
 <resources>
+    <string name="app_name">प्रश्न</string>
     <string name="tagline">आपकी अपनी भाषा में वैदिक ज्योतिष</string>
 
     <!-- Common -->
@@ -35,7 +36,7 @@
     <string name="err_session">आपका सत्र समाप्त हो गया है। कृपया फिर से साइन इन करें।</string>
     <string name="offline_banner">आप ऑफ़लाइन हैं</string>
     <string name="maintenance_title">हम जल्द ही वापस आएँगे</string>
-    <string name="maintenance_default">उद्यत को अपडेट किया जा रहा है। कृपया कुछ मिनट बाद फिर से कोशिश करें।</string>
+    <string name="maintenance_default">प्रश्न को अपडेट किया जा रहा है। कृपया कुछ मिनट बाद फिर से कोशिश करें।</string>
 
     <!-- Accessibility -->
     <string name="cd_back">वापस जाएँ</string>
@@ -76,7 +77,7 @@
     <string name="auth_terms_note">आगे बढ़कर आप हमारी उपयोग की शर्तों और गोपनीयता नीति से सहमत होते हैं।</string>
 
     <!-- Role -->
-    <string name="role_title">आप उद्यत का उपयोग कैसे करेंगे?</string>
+    <string name="role_title">आप प्रश्न का उपयोग कैसे करेंगे?</string>
     <string name="role_personal">अपने और अपने परिवार के लिए</string>
     <string name="role_personal_desc">आपके परिवार के लिए रोज़ का मार्गदर्शन, कुंडली, गुण मिलान और प्रश्नों के उत्तर।</string>
     <string name="role_astrologer">मैं ज्योतिषी हूँ</string>
@@ -84,8 +85,8 @@
 
     <!-- Disclaimer & legal -->
     <string name="disclaimer_title">अस्वीकरण</string>
-    <string name="disclaimer_fallback">उद्यत पारंपरिक वैदिक पद्धतियों पर आधारित ज्योतिषीय मार्गदर्शन देता है। यह चिकित्सा, कानूनी, वित्तीय या मनोवैज्ञानिक सलाह का विकल्प नहीं है। महत्वपूर्ण निर्णयों के लिए कृपया अपने विवेक का उपयोग करें।</string>
-    <string name="disclaimer_agree">मैंने इसे पढ़ और समझ लिया है</string>
+    <string name="disclaimer_fallback">प्रश्न पारंपरिक वैदिक पद्धतियों पर आधारित ज्योतिषीय मार्गदर्शन देता है। यह चिकित्सा, कानूनी, वित्तीय या मनोवैज्ञानिक सलाह का विकल्प नहीं है। महत्वपूर्ण निर्णयों के लिए कृपया अपने विवेक का उपयोग करें।</string>
+    <string name="disclaimer_agree">मैंने सेवा की शर्तें, गोपनीयता नीति और अस्वीकरण पढ़ लिए हैं और मैं इनसे सहमत हूँ</string>
     <string name="legal_terms">उपयोग की शर्तें</string>
     <string name="legal_privacy">गोपनीयता नीति</string>
     <string name="legal_refund">रिफ़ंड नीति</string>
@@ -151,9 +152,9 @@
     <string name="qa_rectify">जन्म समय</string>
     <string name="qa_family">परिवार</string>
     <string name="share_whatsapp">WhatsApp पर शेयर करें</string>
-    <string name="share_daily_text">उद्यत से आज का पंचांग</string>
-    <string name="share_chart_text">उद्यत से मेरी जन्म कुंडली</string>
-    <string name="share_matching_text">उद्यत से कुंडली मिलान रिपोर्ट</string>
+    <string name="share_daily_text">प्रश्न से आज का पंचांग</string>
+    <string name="share_chart_text">प्रश्न से मेरी जन्म कुंडली</string>
+    <string name="share_matching_text">प्रश्न से कुंडली मिलान रिपोर्ट</string>
     <string name="family_title">परिवार</string>
     <string name="family_add">व्यक्ति जोड़ें</string>
     <string name="family_empty">अपने परिवार के सदस्यों को जोड़ें और उनकी कुंडली व रोज़ का मार्गदर्शन देखें।</string>
@@ -416,7 +417,7 @@
     <string name="settings_legal">कानूनी जानकारी</string>
     <string name="settings_privacy">गोपनीयता और डेटा</string>
     <string name="logout">साइन आउट</string>
-    <string name="logout_confirm">इस फ़ोन पर उद्यत से साइन आउट करें?</string>
+    <string name="logout_confirm">इस फ़ोन पर प्रश्न से साइन आउट करें?</string>
 
     <!-- Notifications -->
     <string name="notif_title">सूचनाएँ</string>
@@ -426,7 +427,7 @@
     <string name="notif_transits_desc">साढ़े साती, दशा परिवर्तन और ग्रहण</string>
     <string name="notif_promos">ऑफ़र</string>
     <string name="notif_promos_desc">कभी-कभी त्योहारों के ऑफ़र</string>
-    <string name="notif_blocked">इस फ़ोन पर उद्यत की सूचनाएँ बंद हैं।</string>
+    <string name="notif_blocked">इस फ़ोन पर प्रश्न की सूचनाएँ बंद हैं।</string>
     <string name="notif_open_settings">सेटिंग खोलें</string>
     <string name="notif_perm_title">रोज़ का पंचांग पाना चाहेंगे?</string>
     <string name="notif_perm_body">दैनिक फलादेश, गोचर सूचनाओं और रिपोर्ट तैयार होने की जानकारी के लिए सूचनाओं की अनुमति दें।</string>
@@ -456,7 +457,7 @@
     <string name="support_message">समस्या बताइए</string>
     <string name="support_sent">धन्यवाद। हमें आपका संदेश मिल गया है।</string>
     <string name="support_whatsapp">WhatsApp पर हमसे बात करें</string>
-    <string name="support_whatsapp_text">नमस्ते उद्यत टीम, मुझे मदद चाहिए। मेरी खाता आईडी: %1$s</string>
+    <string name="support_whatsapp_text">नमस्ते प्रश्न टीम, मुझे मदद चाहिए। मेरी खाता आईडी: %1$s</string>
     <string name="support_mine">मेरे टिकट</string>
     <string name="support_none">अभी कोई टिकट नहीं।</string>
     <string name="support_open">खुला</string>

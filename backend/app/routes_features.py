@@ -15,6 +15,7 @@ from fastapi import APIRouter, Depends, Header, Query, Request
 from pydantic import BaseModel, Field
 
 from . import store
+from .features import views
 from .features import alerts as alerts_mod
 from .features import brand as brand_mod
 from .features import charts as charts_mod
@@ -58,9 +59,32 @@ def _upload(path: str, data: bytes, content_type: str) -> str:
 
 # ---------- places ----------
 
+def _local_labels(texts, lang):
+    if lang == "en" or not texts:
+        return list(texts)
+    from .features.translate import translate_many
+    return translate_many(list(texts), lang)
+
+
+def with_place_local(profiles, lang):
+    """Adds birth.place_local (the stored English place name, localized)."""
+    items = profiles if isinstance(profiles, list) else [profiles]
+    names = [((p.get("birth") or {}).get("place") or "") for p in items]
+    local = _local_labels([n for n in names if n], lang)
+    it = iter(local)
+    for p, n in zip(items, names):
+        if n:
+            p.setdefault("birth", {})["place_local"] = next(it)
+    return profiles
+
+
 @router.get("/api/places")
-def places(q: str = ""):
-    return places_mod.search(q)
+def places(q: str = "", request: Request = None):
+    res = places_mod.search(q)
+    lang = store.lang_of(request) if request is not None else "en"
+    for r, loc in zip(res, _local_labels([r["label"] for r in res], lang)):
+        r["label_local"] = loc
+    return res
 
 
 # ---------- profiles ----------
@@ -94,24 +118,25 @@ class ProfilePatch(BaseModel):
 
 @router.get("/api/profiles")
 def list_profiles(include_clients: bool = False, c: Ctx = Depends(ctx)):
-    return {"profiles": prof_mod.list_profiles(c.uid, exclude_clients=not include_clients)}
+    return {"profiles": with_place_local(
+        prof_mod.list_profiles(c.uid, exclude_clients=not include_clients), c.lang)}
 
 
 @router.post("/api/profiles")
 def create_profile(body: ProfileIn, c: Ctx = Depends(ctx)):
     data = body.model_dump()
     data["birth"] = {k: v for k, v in data["birth"].items() if v is not None}
-    return prof_mod.create(c.uid, c.user, data)
+    return with_place_local(prof_mod.create(c.uid, c.user, data), c.lang)
 
 
 @router.get("/api/profiles/{pid}")
 def get_profile(pid: str, c: Ctx = Depends(ctx)):
-    return prof_mod.get(c.uid, pid)
+    return with_place_local(prof_mod.get(c.uid, pid), c.lang)
 
 
 @router.patch("/api/profiles/{pid}")
 def patch_profile(pid: str, body: ProfilePatch, c: Ctx = Depends(ctx)):
-    return prof_mod.update(c.uid, pid, body.model_dump(exclude_unset=True))
+    return with_place_local(prof_mod.update(c.uid, pid, body.model_dump(exclude_unset=True)), c.lang)
 
 
 @router.delete("/api/profiles/{pid}")
@@ -205,7 +230,9 @@ def _match(body: MatchIn, c: Ctx):
 
 @router.post("/api/matching")
 def matching(body: MatchIn, c: Ctx = Depends(ctx)):
-    return _match(body, c)[2]
+    res = _match(body, c)[2]
+    res["view"] = views.tool_view("matching", res, c.lang)
+    return res
 
 
 @router.post("/api/matching/pdf")
@@ -255,8 +282,10 @@ def muhurta(body: MuhurtaIn, c: Ctx = Depends(ctx)):
             raise invalid("Send lat/lon (or a profile_id to use its place)")
         lat, lon = person["birth"]["lat"], person["birth"]["lon"]
         tz = tz or person["birth"].get("tz")
-    return muhurta_mod.find(body.event, start, end, float(lat), float(lon),
-                            tz or "Asia/Kolkata", c.lang, person, body.limit)
+    res = muhurta_mod.find(body.event, start, end, float(lat), float(lon),
+                           tz or "Asia/Kolkata", c.lang, person, body.limit)
+    res["view"] = views.tool_view("muhurta", res, c.lang)
+    return res
 
 
 # ---------- birth-time helper ----------
@@ -277,9 +306,11 @@ class RectifyIn(BaseModel):
 @router.post("/api/profiles/{pid}/rectify")
 def rectify(pid: str, body: RectifyIn, c: Ctx = Depends(ctx)):
     prof = prof_mod.get(c.uid, pid)
-    return rectify_mod.rectify(prof, [e.model_dump() for e in body.events], c.lang,
-                               body.window_minutes, body.step_minutes,
-                               body.from_time, body.to_time)
+    res = rectify_mod.rectify(prof, [e.model_dump() for e in body.events], c.lang,
+                              body.window_minutes, body.step_minutes,
+                              body.from_time, body.to_time)
+    res["view"] = views.tool_view("rectify", res, c.lang)
+    return res
 
 
 # ---------- share card ----------
@@ -359,7 +390,7 @@ def list_clients(q: str = "", c: Ctx = Depends(astro_ctx)):
                    or needle in (p.get("notes") or "").lower()
                    or needle in ((p.get("birth") or {}).get("place") or "").lower()]
     clients.sort(key=lambda p: (p.get("name") or "").lower())
-    return {"clients": clients}
+    return {"clients": with_place_local(clients, c.lang)}
 
 
 @router.post("/api/astro/clients")

@@ -56,7 +56,8 @@ def test_language_file_complete(lang):
     for key, val in flat.items():
         assert isinstance(val, str) and val.strip(), key
         assert _fields(val) == _fields(MASTER[key]), key
-    assert "Udhyath" in flat["labels.brand_tagline"]
+    from app import store
+    assert store.brand(lang) in flat["labels.brand_tagline"]
 
 
 @pytest.mark.parametrize("lang", LANGS)

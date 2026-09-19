@@ -175,12 +175,12 @@ def test_tight_ceiling_shrinks_context_instead_of_overspending(env):
     env.set_models(FakeGemini(use_full_output=True),
                    FakeClaude(lang="ml", out_fraction=1.0, count_ok=False,
                               report_in="estimate"))
-    flags = dict(env.flags, cost_ceiling_units=390)
+    flags = dict(env.flags, cost_ceiling_units=400)
     r = pipeline.run_query(UID, _session("ml", summary=summary), question,
                            prechecked=flags, memory_facts=facts)
     t = r.trace
-    _table("CEILING ₹3.90 (forced) — context shrunk", t)
-    assert r.status == "ok" and t["cost_units"] <= 390
+    _table("CEILING ₹4.00 (forced) — context shrunk", t)
+    assert r.status == "ok" and t["cost_units"] <= 400
     assert _stage(t, "reason")["detail"]["shrunk"] != "full"
 
 

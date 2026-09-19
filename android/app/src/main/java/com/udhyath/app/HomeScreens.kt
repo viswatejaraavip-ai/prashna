@@ -111,7 +111,7 @@ fun HomeScreen(nav: NavHostController) {
                             try {
                                 val url = g.api.shareCard(active.id, "daily")
                                 val bytes = g.api.download(url)
-                                shareFile(ctx, bytes, "udhyath-daily.png", "image/png", ctx.getString(R.string.share_daily_text))
+                                shareFile(ctx, bytes, "prashna-daily.png", "image/png", ctx.getString(R.string.share_daily_text))
                             } catch (e: Exception) { shareErr = e } finally { sharing = false }
                         }
                     }) {
@@ -312,7 +312,7 @@ fun ProfilesScreen(nav: NavHostController) {
                             Text(p.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                             Text("${relationLabel(p.relation)} · ${formatDate(p.birth.date)}" +
                                 (if (p.time_known) " · " + formatTime(p.birth.time) else ""), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text(p.birth.place, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(p.birth.place_local.ifBlank { p.birth.place }, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             if (isActive) Pill(stringResource(R.string.profile_active))
                         }
                         IconButton(onClick = { nav.navigate(Routes.profileEdit(p.id)) }) {

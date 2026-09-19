@@ -2,6 +2,7 @@
 <!-- Tamil (தமிழ்) UI strings. Keep keys in sync with values/strings.xml. -->
 <resources>
     <!-- Brand -->
+    <string name="app_name">பிரஷ்னா</string>
     <string name="tagline">உங்கள் சொந்த மொழியில் வேத ஜோதிடம்</string>
 
     <!-- Common -->
@@ -36,7 +37,7 @@
     <string name="err_session">உங்கள் அமர்வு முடிந்துவிட்டது. மீண்டும் உள்நுழையவும்.</string>
     <string name="offline_banner">நீங்கள் ஆஃப்லைனில் உள்ளீர்கள்</string>
     <string name="maintenance_title">விரைவில் திரும்பி வருவோம்</string>
-    <string name="maintenance_default">உத்யத் புதுப்பிக்கப்படுகிறது. சில நிமிடங்கள் கழித்து மீண்டும் முயற்சிக்கவும்.</string>
+    <string name="maintenance_default">பிரஷ்னா புதுப்பிக்கப்படுகிறது. சில நிமிடங்கள் கழித்து மீண்டும் முயற்சிக்கவும்.</string>
 
     <!-- Accessibility -->
     <string name="cd_back">பின்செல்</string>
@@ -77,7 +78,7 @@
     <string name="auth_terms_note">தொடர்வதன் மூலம் எங்கள் விதிமுறைகள் மற்றும் தனியுரிமைக் கொள்கையை ஏற்கிறீர்கள்.</string>
 
     <!-- Role -->
-    <string name="role_title">உத்யத்தை எப்படிப் பயன்படுத்துவீர்கள்?</string>
+    <string name="role_title">பிரஷ்னாவை எப்படிப் பயன்படுத்துவீர்கள்?</string>
     <string name="role_personal">எனக்கும் என் குடும்பத்துக்கும்</string>
     <string name="role_personal_desc">உங்கள் குடும்பத்துக்கான தினசரி வழிகாட்டுதல், ஜாதகங்கள், பொருத்தம் மற்றும் பதில்கள்.</string>
     <string name="role_astrologer">நான் ஒரு ஜோதிடர்</string>
@@ -85,8 +86,8 @@
 
     <!-- Disclaimer & legal -->
     <string name="disclaimer_title">பொறுப்புத் துறப்பு</string>
-    <string name="disclaimer_fallback">உத்யத் பாரம்பரிய வேத முறைகளின் அடிப்படையில் ஜோதிட வழிகாட்டுதலை வழங்குகிறது. இது மருத்துவ, சட்ட, நிதி அல்லது உளவியல் ஆலோசனைக்கு மாற்றாகாது. முக்கியமான முடிவுகளுக்கு உங்கள் சொந்த விவேகத்தைப் பயன்படுத்தவும்.</string>
-    <string name="disclaimer_agree">இதைப் படித்துப் புரிந்துகொண்டேன்</string>
+    <string name="disclaimer_fallback">பிரஷ்னா பாரம்பரிய வேத முறைகளின் அடிப்படையில் ஜோதிட வழிகாட்டுதலை வழங்குகிறது. இது மருத்துவ, சட்ட, நிதி அல்லது உளவியல் ஆலோசனைக்கு மாற்றாகாது. முக்கியமான முடிவுகளுக்கு உங்கள் சொந்த விவேகத்தைப் பயன்படுத்தவும்.</string>
+    <string name="disclaimer_agree">சேவை விதிமுறைகள், தனியுரிமைக் கொள்கை மற்றும் பொறுப்புத் துறப்பைப் படித்து ஒப்புக்கொள்கிறேன்</string>
     <string name="legal_terms">பயன்பாட்டு விதிமுறைகள்</string>
     <string name="legal_privacy">தனியுரிமைக் கொள்கை</string>
     <string name="legal_refund">பணத்திருப்பக் கொள்கை</string>
@@ -152,9 +153,9 @@
     <string name="qa_rectify">பிறந்த நேரம்</string>
     <string name="qa_family">குடும்பம்</string>
     <string name="share_whatsapp">WhatsApp இல் பகிரவும்</string>
-    <string name="share_daily_text">உத்யத்திலிருந்து இன்றைய பஞ்சாங்கம்</string>
-    <string name="share_chart_text">உத்யத்திலிருந்து என் ஜாதகம்</string>
-    <string name="share_matching_text">உத்யத்திலிருந்து ஜாதகப் பொருத்த அறிக்கை</string>
+    <string name="share_daily_text">பிரஷ்னாவிலிருந்து இன்றைய பஞ்சாங்கம்</string>
+    <string name="share_chart_text">பிரஷ்னாவிலிருந்து என் ஜாதகம்</string>
+    <string name="share_matching_text">பிரஷ்னாவிலிருந்து ஜாதகப் பொருத்த அறிக்கை</string>
     <string name="family_title">குடும்பம்</string>
     <string name="family_add">நபரைச் சேர்</string>
     <string name="family_empty">உங்கள் குடும்ப உறுப்பினர்களின் ஜாதகங்களையும் தினசரி வழிகாட்டுதலையும் காண அவர்களைச் சேர்க்கவும்.</string>
@@ -417,7 +418,7 @@
     <string name="settings_legal">சட்டத் தகவல்</string>
     <string name="settings_privacy">தனியுரிமை மற்றும் தரவு</string>
     <string name="logout">வெளியேறு</string>
-    <string name="logout_confirm">இந்தப் போனில் உத்யத்திலிருந்து வெளியேறவா?</string>
+    <string name="logout_confirm">இந்தப் போனில் பிரஷ்னாவிலிருந்து வெளியேறவா?</string>
 
     <!-- Notifications -->
     <string name="notif_title">அறிவிப்புகள்</string>
@@ -427,7 +428,7 @@
     <string name="notif_transits_desc">ஏழரைச் சனி, தசை மாற்றங்கள் மற்றும் கிரகணங்கள்</string>
     <string name="notif_promos">சலுகைகள்</string>
     <string name="notif_promos_desc">அவ்வப்போது பண்டிகைச் சலுகைகள்</string>
-    <string name="notif_blocked">இந்தப் போனில் உத்யத்துக்கான அறிவிப்புகள் அணைக்கப்பட்டுள்ளன.</string>
+    <string name="notif_blocked">இந்தப் போனில் பிரஷ்னாவுக்கான அறிவிப்புகள் அணைக்கப்பட்டுள்ளன.</string>
     <string name="notif_open_settings">அமைப்புகளைத் திற</string>
     <string name="notif_perm_title">தினசரி பஞ்சாங்கம் வேண்டுமா?</string>
     <string name="notif_perm_body">தினசரி பலன், கோசார எச்சரிக்கைகள் மற்றும் உங்கள் அறிக்கை தயாரானதைத் தெரிவிக்க அறிவிப்புகளை அனுமதிக்கவும்.</string>
@@ -457,7 +458,7 @@
     <string name="support_message">பிரச்சனையை விவரிக்கவும்</string>
     <string name="support_sent">நன்றி. உங்கள் செய்தி எங்களுக்குக் கிடைத்தது.</string>
     <string name="support_whatsapp">WhatsApp இல் எங்களுடன் பேசுங்கள்</string>
-    <string name="support_whatsapp_text">வணக்கம் உத்யத் குழுவினரே, எனக்கு உதவி தேவை. என் கணக்கு எண்: %1$s</string>
+    <string name="support_whatsapp_text">வணக்கம் பிரஷ்னா குழுவினரே, எனக்கு உதவி தேவை. என் கணக்கு எண்: %1$s</string>
     <string name="support_mine">என் டிக்கெட்டுகள்</string>
     <string name="support_none">இன்னும் டிக்கெட்டுகள் இல்லை.</string>
     <string name="support_open">திறந்துள்ளது</string>

@@ -27,7 +27,7 @@ import java.util.concurrent.TimeUnit
  * Push handling. FCM data payload (our assumption; the contract only fixes the
  * cron endpoints): `type` = daily | transit | report | wallet | support, plus
  * optional `profile_id`, `report_id`, `title`, `body`, or a ready `deeplink`
- * (`udhyath://...`). Notification-type messages delivered while the app is in
+ * (`prashna://...`). Notification-type messages delivered while the app is in
  * the background put the same keys in the launch intent's extras.
  */
 object Notifications {
@@ -50,13 +50,13 @@ object Notifications {
     }
 
     fun deepLinkFor(data: Map<String, String?>): Uri? {
-        data["deeplink"]?.takeIf { it.startsWith("udhyath://") }?.let { return Uri.parse(it) }
+        data["deeplink"]?.takeIf { it.startsWith("prashna://") }?.let { return Uri.parse(it) }
         return when (data["type"]) {
-            "daily" -> Uri.parse("udhyath://home")
-            "transit", "transit_alert" -> data["profile_id"]?.let { Uri.parse("udhyath://alerts/$it") } ?: Uri.parse("udhyath://home")
-            "report" -> data["report_id"]?.let { Uri.parse("udhyath://report/$it") } ?: Uri.parse("udhyath://reports")
-            "wallet" -> Uri.parse("udhyath://wallet")
-            "support" -> Uri.parse("udhyath://support")
+            "daily" -> Uri.parse("prashna://home")
+            "transit", "transit_alert" -> data["profile_id"]?.let { Uri.parse("prashna://alerts/$it") } ?: Uri.parse("prashna://home")
+            "report" -> data["report_id"]?.let { Uri.parse("prashna://report/$it") } ?: Uri.parse("prashna://reports")
+            "wallet" -> Uri.parse("prashna://wallet")
+            "support" -> Uri.parse("prashna://support")
             else -> null
         }
     }
@@ -126,7 +126,7 @@ class ReportWatchWorker(ctx: Context, params: WorkerParameters) : CoroutineWorke
                     applicationContext, Notifications.CH_REPORTS,
                     applicationContext.getString(R.string.notif_report_ready_title),
                     applicationContext.getString(R.string.notif_report_ready_body),
-                    Uri.parse("udhyath://report/$id"),
+                    Uri.parse("prashna://report/$id"),
                 )
                 else -> {} // failed: the reports screen offers resume
             }

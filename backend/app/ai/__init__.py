@@ -1,4 +1,4 @@
-"""Udhyath AI pipeline: Gemini Flash plans/executes, Claude
+"""Prashna AI pipeline: Gemini Flash plans/executes, Claude
 Opus 4.5 reasons. See docs/launch/CONTRACT.md ("AI pipeline", `traces`).
 
     planner.py   Flash: guard + intent + tool plan (JSON)            stage "plan"

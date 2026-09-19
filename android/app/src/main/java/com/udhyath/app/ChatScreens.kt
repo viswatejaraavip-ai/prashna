@@ -100,7 +100,7 @@ fun SessionsScreen(nav: NavHostController) {
                                 Text(stringResource(R.string.questions_count, sess.query_count), style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
-                            Text(sess.summary?.ifBlank { null } ?: stringResource(R.string.session_no_summary), maxLines = 3)
+                            Text(sess.title?.ifBlank { null } ?: stringResource(R.string.session_no_summary), maxLines = 3)
                         }
                     }
                 }

@@ -2,6 +2,7 @@
 <!-- Kannada (ಕನ್ನಡ) UI strings. Must mirror every translatable key in values/strings.xml. -->
 <resources>
     <!-- Brand -->
+    <string name="app_name">ಪ್ರಶ್ನ</string>
     <string name="tagline">ನಿಮ್ಮದೇ ಭಾಷೆಯಲ್ಲಿ ವೈದಿಕ ಜ್ಯೋತಿಷ್ಯ</string>
 
     <!-- Common -->
@@ -36,7 +37,7 @@
     <string name="err_session">ನಿಮ್ಮ ಸೆಷನ್ ಮುಗಿದಿದೆ. ದಯವಿಟ್ಟು ಮತ್ತೆ ಸೈನ್ ಇನ್ ಮಾಡಿ.</string>
     <string name="offline_banner">ನೀವು ಆಫ್‌ಲೈನ್‌ನಲ್ಲಿದ್ದೀರಿ</string>
     <string name="maintenance_title">ನಾವು ಶೀಘ್ರದಲ್ಲೇ ಮರಳಿ ಬರುತ್ತೇವೆ</string>
-    <string name="maintenance_default">ಉದ್ಯತ್ ಅಪ್‌ಡೇಟ್ ಆಗುತ್ತಿದೆ. ದಯವಿಟ್ಟು ಕೆಲವು ನಿಮಿಷಗಳ ನಂತರ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.</string>
+    <string name="maintenance_default">ಪ್ರಶ್ನ ಅಪ್‌ಡೇಟ್ ಆಗುತ್ತಿದೆ. ದಯವಿಟ್ಟು ಕೆಲವು ನಿಮಿಷಗಳ ನಂತರ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.</string>
 
     <!-- Accessibility -->
     <string name="cd_back">ಹಿಂದಕ್ಕೆ</string>
@@ -77,7 +78,7 @@
     <string name="auth_terms_note">ಮುಂದುವರಿಸುವ ಮೂಲಕ ನೀವು ನಮ್ಮ ನಿಯಮಗಳು ಮತ್ತು ಗೌಪ್ಯತಾ ನೀತಿಗೆ ಒಪ್ಪುತ್ತೀರಿ.</string>
 
     <!-- Role -->
-    <string name="role_title">ಉದ್ಯತ್ ಅನ್ನು ನೀವು ಹೇಗೆ ಬಳಸುತ್ತೀರಿ?</string>
+    <string name="role_title">ಪ್ರಶ್ನವನ್ನು ನೀವು ಹೇಗೆ ಬಳಸುತ್ತೀರಿ?</string>
     <string name="role_personal">ನನಗಾಗಿ ಮತ್ತು ನನ್ನ ಕುಟುಂಬಕ್ಕಾಗಿ</string>
     <string name="role_personal_desc">ನಿಮ್ಮ ಕುಟುಂಬಕ್ಕಾಗಿ ದಿನದ ಮಾರ್ಗದರ್ಶನ, ಜಾತಕಗಳು, ಹೊಂದಾಣಿಕೆ ಮತ್ತು ಉತ್ತರಗಳು.</string>
     <string name="role_astrologer">ನಾನು ಜ್ಯೋತಿಷಿ</string>
@@ -85,8 +86,8 @@
 
     <!-- Disclaimer & legal -->
     <string name="disclaimer_title">ಹಕ್ಕು ನಿರಾಕರಣೆ</string>
-    <string name="disclaimer_fallback">ಉದ್ಯತ್ ಸಾಂಪ್ರದಾಯಿಕ ವೈದಿಕ ವಿಧಾನಗಳ ಆಧಾರದ ಮೇಲೆ ಜ್ಯೋತಿಷ್ಯ ಮಾರ್ಗದರ್ಶನ ನೀಡುತ್ತದೆ. ಇದು ವೈದ್ಯಕೀಯ, ಕಾನೂನು, ಹಣಕಾಸು ಅಥವಾ ಮಾನಸಿಕ ಸಲಹೆಗೆ ಪರ್ಯಾಯವಲ್ಲ. ಮುಖ್ಯ ನಿರ್ಧಾರಗಳಿಗೆ ದಯವಿಟ್ಟು ನಿಮ್ಮದೇ ವಿವೇಚನೆ ಬಳಸಿ.</string>
-    <string name="disclaimer_agree">ನಾನು ಇದನ್ನು ಓದಿ ಅರ್ಥಮಾಡಿಕೊಂಡಿದ್ದೇನೆ</string>
+    <string name="disclaimer_fallback">ಪ್ರಶ್ನ ಸಾಂಪ್ರದಾಯಿಕ ವೈದಿಕ ವಿಧಾನಗಳ ಆಧಾರದ ಮೇಲೆ ಜ್ಯೋತಿಷ್ಯ ಮಾರ್ಗದರ್ಶನ ನೀಡುತ್ತದೆ. ಇದು ವೈದ್ಯಕೀಯ, ಕಾನೂನು, ಹಣಕಾಸು ಅಥವಾ ಮಾನಸಿಕ ಸಲಹೆಗೆ ಪರ್ಯಾಯವಲ್ಲ. ಮುಖ್ಯ ನಿರ್ಧಾರಗಳಿಗೆ ದಯವಿಟ್ಟು ನಿಮ್ಮದೇ ವಿವೇಚನೆ ಬಳಸಿ.</string>
+    <string name="disclaimer_agree">ನಾನು ಸೇವಾ ನಿಯಮಗಳು, ಗೌಪ್ಯತಾ ನೀತಿ ಮತ್ತು ಹಕ್ಕು ನಿರಾಕರಣೆಯನ್ನು ಓದಿದ್ದೇನೆ ಮತ್ತು ಒಪ್ಪುತ್ತೇನೆ</string>
     <string name="legal_terms">ಬಳಕೆಯ ನಿಯಮಗಳು</string>
     <string name="legal_privacy">ಗೌಪ್ಯತಾ ನೀತಿ</string>
     <string name="legal_refund">ಹಣ ಮರುಪಾವತಿ ನೀತಿ</string>
@@ -152,9 +153,9 @@
     <string name="qa_rectify">ಜನ್ಮ ಸಮಯ</string>
     <string name="qa_family">ಕುಟುಂಬ</string>
     <string name="share_whatsapp">WhatsApp ನಲ್ಲಿ ಹಂಚಿಕೊಳ್ಳಿ</string>
-    <string name="share_daily_text">ಉದ್ಯತ್‌ನಿಂದ ಇಂದಿನ ಪಂಚಾಂಗ</string>
-    <string name="share_chart_text">ಉದ್ಯತ್‌ನಿಂದ ನನ್ನ ಜನ್ಮ ಜಾತಕ</string>
-    <string name="share_matching_text">ಉದ್ಯತ್‌ನಿಂದ ಜಾತಕ ಹೊಂದಾಣಿಕೆ ವರದಿ</string>
+    <string name="share_daily_text">ಪ್ರಶ್ನದಿಂದ ಇಂದಿನ ಪಂಚಾಂಗ</string>
+    <string name="share_chart_text">ಪ್ರಶ್ನದಿಂದ ನನ್ನ ಜನ್ಮ ಜಾತಕ</string>
+    <string name="share_matching_text">ಪ್ರಶ್ನದಿಂದ ಜಾತಕ ಹೊಂದಾಣಿಕೆ ವರದಿ</string>
     <string name="family_title">ಕುಟುಂಬ</string>
     <string name="family_add">ವ್ಯಕ್ತಿಯನ್ನು ಸೇರಿಸಿ</string>
     <string name="family_empty">ನಿಮ್ಮ ಕುಟುಂಬದ ಸದಸ್ಯರ ಜಾತಕ ಮತ್ತು ದಿನದ ಮಾರ್ಗದರ್ಶನ ನೋಡಲು ಅವರನ್ನು ಸೇರಿಸಿ.</string>
@@ -417,7 +418,7 @@
     <string name="settings_legal">ಕಾನೂನು</string>
     <string name="settings_privacy">ಗೌಪ್ಯತೆ ಮತ್ತು ಡೇಟಾ</string>
     <string name="logout">ಸೈನ್ ಔಟ್</string>
-    <string name="logout_confirm">ಈ ಫೋನ್‌ನಲ್ಲಿ ಉದ್ಯತ್‌ನಿಂದ ಸೈನ್ ಔಟ್ ಆಗಬೇಕೆ?</string>
+    <string name="logout_confirm">ಈ ಫೋನ್‌ನಲ್ಲಿ ಪ್ರಶ್ನದಿಂದ ಸೈನ್ ಔಟ್ ಆಗಬೇಕೆ?</string>
 
     <!-- Notifications -->
     <string name="notif_title">ಅಧಿಸೂಚನೆಗಳು</string>
@@ -427,7 +428,7 @@
     <string name="notif_transits_desc">ಸಾಡೇ ಸಾತಿ, ದಶಾ ಬದಲಾವಣೆಗಳು ಮತ್ತು ಗ್ರಹಣಗಳು</string>
     <string name="notif_promos">ಕೊಡುಗೆಗಳು</string>
     <string name="notif_promos_desc">ಆಗಾಗ ಹಬ್ಬದ ಕೊಡುಗೆಗಳು</string>
-    <string name="notif_blocked">ಈ ಫೋನ್‌ನಲ್ಲಿ ಉದ್ಯತ್‌ಗೆ ಅಧಿಸೂಚನೆಗಳು ಆಫ್ ಆಗಿವೆ.</string>
+    <string name="notif_blocked">ಈ ಫೋನ್‌ನಲ್ಲಿ ಪ್ರಶ್ನಕ್ಕೆ ಅಧಿಸೂಚನೆಗಳು ಆಫ್ ಆಗಿವೆ.</string>
     <string name="notif_open_settings">ಸೆಟ್ಟಿಂಗ್‌ಗಳನ್ನು ತೆರೆಯಿರಿ</string>
     <string name="notif_perm_title">ದಿನದ ಪಂಚಾಂಗ ಪಡೆಯಬೇಕೆ?</string>
     <string name="notif_perm_body">ದಿನದ ಭವಿಷ್ಯ, ಗೋಚಾರ ಎಚ್ಚರಿಕೆಗಳು ಮತ್ತು ನಿಮ್ಮ ವರದಿ ಸಿದ್ಧವಾದಾಗ ತಿಳಿಯಲು ಅಧಿಸೂಚನೆಗಳನ್ನು ಅನುಮತಿಸಿ.</string>
@@ -457,7 +458,7 @@
     <string name="support_message">ಸಮಸ್ಯೆಯನ್ನು ವಿವರಿಸಿ</string>
     <string name="support_sent">ಧನ್ಯವಾದಗಳು. ನಿಮ್ಮ ಸಂದೇಶ ನಮಗೆ ತಲುಪಿದೆ.</string>
     <string name="support_whatsapp">WhatsApp ನಲ್ಲಿ ನಮ್ಮೊಂದಿಗೆ ಮಾತನಾಡಿ</string>
-    <string name="support_whatsapp_text">ನಮಸ್ಕಾರ ಉದ್ಯತ್ ತಂಡ, ನನಗೆ ಸಹಾಯ ಬೇಕು. ನನ್ನ ಖಾತೆ ಐಡಿ: %1$s</string>
+    <string name="support_whatsapp_text">ನಮಸ್ಕಾರ ಪ್ರಶ್ನ ತಂಡ, ನನಗೆ ಸಹಾಯ ಬೇಕು. ನನ್ನ ಖಾತೆ ಐಡಿ: %1$s</string>
     <string name="support_mine">ನನ್ನ ಟಿಕೆಟ್‌ಗಳು</string>
     <string name="support_none">ಇನ್ನೂ ಯಾವುದೇ ಟಿಕೆಟ್ ಇಲ್ಲ.</string>
     <string name="support_open">ತೆರೆದಿದೆ</string>

@@ -54,7 +54,7 @@ gcloud auth application-default set-quota-project $PROJECT_ID
 3. **Authentication → Settings → Authorized domains**: add your custom domain
    (for the operator dashboard) if you use one.
 4. **Project settings → Your apps → Add app → Android**, package
-   `com.udhyath.app`. Add **SHA-1 and SHA-256** fingerprints for:
+   `com.prashna.app`. Add **SHA-1 and SHA-256** fingerprints for:
    - the debug keystore: `keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android`
    - your upload key: `keytool -list -v -keystore upload.jks -alias upload`
    - the **Play App Signing key** (Play Console → Setup → App integrity → App
@@ -145,7 +145,7 @@ Rollback: `gcloud run services update-traffic udhyath-api --region=asia-south1 -
 
 ## 6. Google Play
 
-1. Play Console → create the app (`com.udhyath.app`), upload an internal-testing
+1. Play Console → create the app (`com.prashna.app`), upload an internal-testing
    build signed with your upload key.
 2. **Monetize → Products → In-app products**: create four *managed* products
    (they are consumed server-side after each purchase):

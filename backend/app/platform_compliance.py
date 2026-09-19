@@ -132,7 +132,15 @@ def reply_ticket(ticket_id: str, message: str, admin_email: str, resolve: bool =
     t = snap.to_dict() or {}
     try:
         from .platform_push import send_push
-        send_push(t.get("uid", ""), "Udhyath support", message[:180],
+        user = store.get_user(t.get("uid", "")) or {}
+        lang = user.get("lang") or store.DEFAULT_LANG
+        title = store.brand(lang)
+        if lang != "en":
+            from .features.translate import translate_many
+            title = translate_many(["%s support" % title], lang)[0]
+        else:
+            title = "%s support" % title
+        send_push(t.get("uid", ""), title, message[:180],
                   {"type": "support", "ticket_id": ticket_id})
     except Exception:
         pass

@@ -137,13 +137,14 @@ def add_fcm_token(body: FcmTokenIn, uid: str = Depends(store.current_uid)):
 
 
 class DisclaimerIn(BaseModel):
-    version: str = Field(default="1", max_length=20)
+    version: str = Field(default="", max_length=20)  # "" = the current TERMS_VERSION
 
 
 @router.post("/api/me/disclaimer")
 def accept_disclaimer(body: Optional[DisclaimerIn] = None, uid: str = Depends(store.current_uid)):
     _user_or_404(uid)
-    return platform_compliance.accept_disclaimer(uid, (body or DisclaimerIn()).version)
+    from .platform_legal import TERMS_VERSION
+    return platform_compliance.accept_disclaimer(uid, (body or DisclaimerIn()).version or TERMS_VERSION)
 
 
 @router.get("/api/me/export")

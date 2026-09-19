@@ -72,7 +72,8 @@ def create_session(body: SessionIn, request: Request,
 def list_sessions(limit: int = 20, uid: str = Depends(store.current_uid)):
     rows = repo.list_sessions(uid, max(1, min(limit, 100)))
     keep = ("id", "profile_id", "lang", "mode", "created_at", "updated_at",
-            "query_count", "summary")
+            "query_count", "title")
+    # `summary` is the pipeline's internal English memory and is never shown.
     return [{("session_id" if k == "id" else k): r.get(k) for k in keep} for r in rows]
 
 

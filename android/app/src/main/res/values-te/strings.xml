@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Telugu (తెలుగు) strings. Keys must match values/strings.xml (see StringsCompletenessTest). -->
 <resources>
+    <string name="app_name">ప్రశ్న</string>
     <string name="tagline">మీ సొంత భాషలో వేద జ్యోతిష్యం</string>
 
     <!-- Common -->
@@ -35,7 +36,7 @@
     <string name="err_session">మీ సెషన్ ముగిసింది. దయచేసి మళ్ళీ సైన్ ఇన్ చేయండి.</string>
     <string name="offline_banner">మీరు ఆఫ్‌లైన్‌లో ఉన్నారు</string>
     <string name="maintenance_title">కొద్దిసేపట్లో మళ్ళీ వస్తాము</string>
-    <string name="maintenance_default">ఉద్యత్ అప్‌డేట్ అవుతోంది. దయచేసి కొన్ని నిమిషాల తర్వాత మళ్ళీ ప్రయత్నించండి.</string>
+    <string name="maintenance_default">ప్రశ్న అప్‌డేట్ అవుతోంది. దయచేసి కొన్ని నిమిషాల తర్వాత మళ్ళీ ప్రయత్నించండి.</string>
 
     <!-- Accessibility -->
     <string name="cd_back">వెనక్కి</string>
@@ -76,7 +77,7 @@
     <string name="auth_terms_note">కొనసాగించడం ద్వారా మీరు మా నిబంధనలు మరియు గోప్యతా విధానానికి అంగీకరిస్తున్నారు.</string>
 
     <!-- Role -->
-    <string name="role_title">మీరు ఉద్యత్‌ను ఎలా ఉపయోగిస్తారు?</string>
+    <string name="role_title">మీరు ప్రశ్నను ఎలా ఉపయోగిస్తారు?</string>
     <string name="role_personal">నా కోసం, నా కుటుంబం కోసం</string>
     <string name="role_personal_desc">మీ కుటుంబానికి రోజువారీ మార్గదర్శనం, జాతక చక్రాలు, పొంతన మరియు జవాబులు.</string>
     <string name="role_astrologer">నేను జ్యోతిష్యుడిని</string>
@@ -84,8 +85,8 @@
 
     <!-- Disclaimer & legal -->
     <string name="disclaimer_title">గమనిక</string>
-    <string name="disclaimer_fallback">ఉద్యత్ సాంప్రదాయ వేద పద్ధతుల ఆధారంగా జ్యోతిష్య మార్గదర్శనం అందిస్తుంది. ఇది వైద్య, న్యాయ, ఆర్థిక లేదా మానసిక సలహాకు ప్రత్యామ్నాయం కాదు. ముఖ్యమైన నిర్ణయాలకు దయచేసి మీ సొంత విచక్షణను ఉపయోగించండి.</string>
-    <string name="disclaimer_agree">నేను ఇది చదివి అర్థం చేసుకున్నాను</string>
+    <string name="disclaimer_fallback">ప్రశ్న సాంప్రదాయ వేద పద్ధతుల ఆధారంగా జ్యోతిష్య మార్గదర్శనం అందిస్తుంది. ఇది వైద్య, న్యాయ, ఆర్థిక లేదా మానసిక సలహాకు ప్రత్యామ్నాయం కాదు. ముఖ్యమైన నిర్ణయాలకు దయచేసి మీ సొంత విచక్షణను ఉపయోగించండి.</string>
+    <string name="disclaimer_agree">నేను సేవా నిబంధనలు, గోప్యతా విధానం మరియు నిరాకరణ ప్రకటనను చదివి, అంగీకరిస్తున్నాను</string>
     <string name="legal_terms">వినియోగ నిబంధనలు</string>
     <string name="legal_privacy">గోప్యతా విధానం</string>
     <string name="legal_refund">రీఫండ్ విధానం</string>
@@ -151,9 +152,9 @@
     <string name="qa_rectify">జనన సమయం</string>
     <string name="qa_family">కుటుంబం</string>
     <string name="share_whatsapp">WhatsApp లో షేర్ చేయండి</string>
-    <string name="share_daily_text">ఉద్యత్ నుండి ఈ రోజు పంచాంగం</string>
-    <string name="share_chart_text">ఉద్యత్ నుండి నా జాతక చక్రం</string>
-    <string name="share_matching_text">ఉద్యత్ నుండి జాతక పొంతన రిపోర్ట్</string>
+    <string name="share_daily_text">ప్రశ్న నుండి ఈ రోజు పంచాంగం</string>
+    <string name="share_chart_text">ప్రశ్న నుండి నా జాతక చక్రం</string>
+    <string name="share_matching_text">ప్రశ్న నుండి జాతక పొంతన రిపోర్ట్</string>
     <string name="family_title">కుటుంబం</string>
     <string name="family_add">వ్యక్తిని జోడించండి</string>
     <string name="family_empty">మీ కుటుంబ సభ్యుల జాతక చక్రాలు, రోజువారీ మార్గదర్శనం చూడటానికి వారిని జోడించండి.</string>
@@ -416,7 +417,7 @@
     <string name="settings_legal">చట్టపరమైనవి</string>
     <string name="settings_privacy">గోప్యత మరియు డేటా</string>
     <string name="logout">సైన్ అవుట్</string>
-    <string name="logout_confirm">ఈ ఫోన్‌లో ఉద్యత్ నుండి సైన్ అవుట్ చేయాలా?</string>
+    <string name="logout_confirm">ఈ ఫోన్‌లో ప్రశ్న నుండి సైన్ అవుట్ చేయాలా?</string>
 
     <!-- Notifications -->
     <string name="notif_title">నోటిఫికేషన్‌లు</string>
@@ -426,7 +427,7 @@
     <string name="notif_transits_desc">ఏలినాటి శని, దశ మార్పులు మరియు గ్రహణాలు</string>
     <string name="notif_promos">ఆఫర్లు</string>
     <string name="notif_promos_desc">అప్పుడప్పుడు పండుగ ఆఫర్లు</string>
-    <string name="notif_blocked">ఈ ఫోన్‌లో ఉద్యత్ నోటిఫికేషన్‌లు ఆపివేయబడ్డాయి.</string>
+    <string name="notif_blocked">ఈ ఫోన్‌లో ప్రశ్న నోటిఫికేషన్‌లు ఆపివేయబడ్డాయి.</string>
     <string name="notif_open_settings">సెట్టింగ్‌లు తెరవండి</string>
     <string name="notif_perm_title">రోజువారీ పంచాంగం కావాలా?</string>
     <string name="notif_perm_body">రోజువారీ ఫలితం, గోచార హెచ్చరికలు మరియు మీ రిపోర్ట్ సిద్ధమైనప్పుడు తెలియజేయడానికి నోటిఫికేషన్‌లు అనుమతించండి.</string>
@@ -456,7 +457,7 @@
     <string name="support_message">సమస్యను వివరించండి</string>
     <string name="support_sent">ధన్యవాదాలు. మీ సందేశం మాకు అందింది.</string>
     <string name="support_whatsapp">WhatsApp లో మాతో మాట్లాడండి</string>
-    <string name="support_whatsapp_text">నమస్తే ఉద్యత్ బృందం, నాకు సహాయం కావాలి. నా ఖాతా ID: %1$s</string>
+    <string name="support_whatsapp_text">నమస్తే ప్రశ్న బృందం, నాకు సహాయం కావాలి. నా ఖాతా ID: %1$s</string>
     <string name="support_mine">నా టికెట్లు</string>
     <string name="support_none">ఇంకా టికెట్లు ఏమీ లేవు.</string>
     <string name="support_open">తెరిచి ఉంది</string>
