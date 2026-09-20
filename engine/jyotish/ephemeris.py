@@ -115,6 +115,19 @@ def planet_positions(jd: float, ayanamsa: str = "lahiri") -> Dict[str, Dict]:
     return out
 
 
+def planet_longitude(jd: float, planet: str, ayanamsa: str = "lahiri") -> float:
+    """Sidereal longitude of one graha.
+
+    ``planet_positions`` costs nine ``swe.calc_ut`` calls; scans that walk a
+    single planet over decades (Saturn ingresses for Sadhe Sati, transit
+    alerts) only ever need one, so they use this instead."""
+    set_ayanamsa(ayanamsa)
+    if planet == "Ketu":
+        return (planet_longitude(jd, "Rahu", ayanamsa) + 180.0) % 360.0
+    values, _retflags = swe.calc_ut(jd, _PLANET_IDS[planet], SIDEREAL_FLAGS)
+    return values[0] % 360.0
+
+
 def houses(
     jd: float, lat: float, lon: float, hsys: bytes = b"P", ayanamsa: str = "lahiri",
 ) -> Tuple[Tuple[float, ...], Tuple[float, ...]]:

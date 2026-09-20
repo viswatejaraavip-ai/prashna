@@ -18,6 +18,14 @@ locals {
       QUERY_PRICE_UNITS        = "1000"
       QUERY_COST_CEILING_UNITS = "500"
       USD_TO_INR               = "90"
+      # Prime Firestore, the Firebase signing certs, the places dataset, the
+      # i18n templates and the ephemeris in a background thread as soon as the
+      # container starts, instead of inside somebody's first request.
+      WARMUP_ON_START = "1"
+      # firebase-admin's revocation check costs an extra Identity Toolkit round
+      # trip on every sign-in (~250-350 ms) and buys almost nothing here; see
+      # platform_auth.CHECK_REVOKED. Set to "1" to turn it back on.
+      AUTH_CHECK_REVOKED = "0"
       TRIAL_CREDIT_UNITS       = "1000"
       PRO_PLAN_UNITS           = "49900"
       PRO_PLAN_DAYS            = "30"
@@ -55,9 +63,16 @@ resource "google_cloud_run_v2_service" "api" {
           cpu    = var.cpu
           memory = var.memory
         }
-        cpu_idle          = !var.cpu_always_allocated
+        cpu_idle = !var.cpu_always_allocated
+        # Full CPU during container start, so the Python imports and the
+        # warm-up thread finish before the first request lands.
         startup_cpu_boost = true
       }
+      # No custom startup_probe on purpose: the default TCP probe passes the
+      # moment uvicorn binds, which is already after the app has imported, and
+      # an HTTP probe would only add its poll interval to every cold start.
+      # The readiness that matters (Firestore, Firebase certs, ephemeris) is
+      # handled by the WARMUP_ON_START thread, which overlaps with traffic.
 
       dynamic "env" {
         for_each = local.run_env

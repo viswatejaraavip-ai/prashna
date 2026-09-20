@@ -203,14 +203,14 @@ def is_pro(user: Optional[Dict]) -> bool:
     return dt > datetime.now(timezone.utc)
 
 
-def require_pro(user: Dict) -> None:
+def require_pro(user: Dict, lang: str = "en") -> None:
     if not is_pro(user):
-        raise forbidden("This needs an active Pro plan")
+        raise forbidden(t(lang, "errors.pro_needed"))
 
 
-def require_astrologer(user: Dict) -> None:
+def require_astrologer(user: Dict, lang: str = "en") -> None:
     if (user or {}).get("role") != "astrologer":
-        raise forbidden("Astrologer accounts only")
+        raise forbidden(t(lang, "errors.astrologer_only"))
 
 
 def tz_today(tz_name: str) -> date:

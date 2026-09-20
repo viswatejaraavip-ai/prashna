@@ -89,6 +89,10 @@
     <string name="role_personal_desc">Daily guidance, charts, matching and answers for your family.</string>
     <string name="role_astrologer">I am an astrologer</string>
     <string name="role_astrologer_desc">Client records, professional charts and reports with your own brand.</string>
+    <string name="role_change">Change account type</string>
+    <string name="role_change_cta">Switch</string>
+    <string name="role_change_to_astrologer">Switch to an astrologer account? You get client records, professional charts and PDFs with your own brand. Your family profiles stay as they are.</string>
+    <string name="role_change_to_personal">Switch back to a personal account? Your clients stay saved, but the astrologer tools are hidden.</string>
 
     <!-- Disclaimer & legal -->
     <string name="disclaimer_title">Disclaimer</string>
@@ -379,7 +383,7 @@
     <!-- Report -->
     <string name="report_title">Life report</string>
     <string name="report_headline">Your complete life report</string>
-    <string name="report_pitch">About one lakh words across 18 chapters: childhood, education, career, marriage, children, health, wealth and the decades ahead.</string>
+    <string name="report_pitch">18 chapters on your life: childhood, education, career, marriage, children, health, wealth and the decades ahead. Ready in a few minutes.</string>
     <string name="report_for">Report for</string>
     <string name="report_teaser_title">Free sample chapter</string>
     <string name="report_teaser_cta">Read a free chapter</string>

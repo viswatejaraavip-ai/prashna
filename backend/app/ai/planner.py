@@ -8,11 +8,11 @@ else. Replaces the Haiku classifier that used to live in guard.py.
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
 from .. import agent
-from . import llm
+from . import clock, llm
 
 log = logging.getLogger("udhyath.ai.planner")
 
@@ -148,10 +148,12 @@ def plan(question: str, *, lang: str, mode: str, summary: str, memory: List[str]
          now: Optional[datetime] = None) -> Tuple[Dict, "llm.Stage"]:
     """Returns (validated plan, Stage). Raises if Flash is unreachable (the
     pipeline fails closed with a free error turn)."""
-    now = now or datetime.now(timezone.utc)
+    now = now or clock.now()
     payload = {
         "lang": lang, "language_name": LANG_NAMES.get(lang, lang), "mode": mode,
-        "today": now.strftime("%Y-%m-%d"),
+        # Same anchor the brief and the reasoner get (clock.py), so a
+        # "next year" in the question resolves to the same year everywhere.
+        "now": clock.stamp(), "today": now.strftime("%Y-%m-%d"),
         "session_summary": summary or "",
         "client_memory": memory[:8],
         "profile": {"name": profile.get("name", ""), "relation": profile.get("relation", ""),

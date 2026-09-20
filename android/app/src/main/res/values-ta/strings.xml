@@ -83,6 +83,10 @@
     <string name="role_personal_desc">உங்கள் குடும்பத்துக்கான தினசரி வழிகாட்டுதல், ஜாதகங்கள், பொருத்தம் மற்றும் பதில்கள்.</string>
     <string name="role_astrologer">நான் ஒரு ஜோதிடர்</string>
     <string name="role_astrologer_desc">வாடிக்கையாளர் பதிவுகள், தொழில்முறை ஜாதகங்கள் மற்றும் உங்கள் சொந்த பிராண்டுடன் அறிக்கைகள்.</string>
+    <string name="role_change">கணக்கு வகையை மாற்று</string>
+    <string name="role_change_cta">மாற்று</string>
+    <string name="role_change_to_astrologer">ஜோதிடர் கணக்குக்கு மாறவா? வாடிக்கையாளர் பதிவுகள், தொழில்முறை ஜாதகங்கள், உங்கள் பிராண்ட் கொண்ட PDF-கள் கிடைக்கும். உங்கள் குடும்ப சுயவிவரங்கள் அப்படியே இருக்கும்.</string>
+    <string name="role_change_to_personal">மீண்டும் தனிப்பட்ட கணக்குக்கு மாறவா? உங்கள் வாடிக்கையாளர்கள் சேமிக்கப்பட்டிருப்பர், ஆனால் ஜோதிடர் கருவிகள் மறைக்கப்படும்.</string>
 
     <!-- Disclaimer & legal -->
     <string name="disclaimer_title">பொறுப்புத் துறப்பு</string>
@@ -373,7 +377,7 @@
     <!-- Report -->
     <string name="report_title">வாழ்க்கை அறிக்கை</string>
     <string name="report_headline">உங்கள் முழுமையான வாழ்க்கை அறிக்கை</string>
-    <string name="report_pitch">18 அத்தியாயங்களில் சுமார் ஒரு லட்சம் வார்த்தைகள்: குழந்தைப் பருவம், கல்வி, வேலை, திருமணம், குழந்தைகள், ஆரோக்கியம், செல்வம் மற்றும் வரும் பத்தாண்டுகள்.</string>
+    <string name="report_pitch">உங்கள் வாழ்க்கை குறித்து 18 அத்தியாயங்கள்: குழந்தைப் பருவம், கல்வி, தொழில், திருமணம், குழந்தைகள், உடல்நலம், செல்வம் மற்றும் வரவிருக்கும் பத்தாண்டுகள். சில நிமிடங்களில் தயார்.</string>
     <string name="report_for">யாருக்கான அறிக்கை</string>
     <string name="report_teaser_title">இலவச மாதிரி அத்தியாயம்</string>
     <string name="report_teaser_cta">ஒரு இலவச அத்தியாயத்தைப் படியுங்கள்</string>

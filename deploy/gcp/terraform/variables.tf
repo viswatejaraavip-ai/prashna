@@ -27,9 +27,32 @@ variable "image" {
 }
 
 variable "min_instances" {
-  description = "0 = scale to zero (cheapest, ~2-4 s cold start); 1 = always warm."
+  description = <<-EOT
+    Warm instances kept ready. 0 scales to zero and makes the first user after
+    ~15 minutes of idle wait for a container start: measured at 2.4-2.6 s on
+    this service, which is most of "signing in with OTP is slow".
+
+    1 removes that wait entirely, and is what the launch should run with.
+    What it costs per month (asia-south1 list prices, 730 h, minus the free
+    tier, ~Rs.88/USD) depends on the billing mode `cpu_always_allocated`
+    picks:
+
+      cpu_always_allocated = true  (today: instance-based billing, needed
+        because report chapters keep generating in background threads after
+        the HTTP response is sent)
+          2 vCPU / 2 GiB : ~USD 104/month  (~Rs. 9,200)
+          1 vCPU / 1 GiB : ~USD  52/month  (~Rs. 4,600)
+
+      cpu_always_allocated = false (request-based billing; idle min-instances
+        are billed at the much lower idle rate, but background work after the
+        response is throttled - confirm with the AI workstream first)
+          2 vCPU / 2 GiB : ~USD 15/month idle (~Rs. 1,300) + per-request CPU
+
+    A Cloud Scheduler "keep warm" ping is NOT a cheaper substitute: under
+    instance-based billing a pinged instance costs the same as min_instances.
+  EOT
   type        = number
-  default     = 0
+  default     = 1
 }
 
 variable "max_instances" {
@@ -38,7 +61,13 @@ variable "max_instances" {
 }
 
 variable "concurrency" {
-  description = "Requests per instance. Most time is spent waiting on the model APIs, so a moderate value is fine; engine math is CPU-bound, so don't go very high."
+  description = <<-EOT
+    Requests per instance. Most time is spent waiting on the model APIs, so a
+    moderate value is fine; engine math is CPU-bound (and holds the GIL), so
+    don't go very high. Measured warm server time for the non-AI endpoints is
+    2-45 ms each, so 20 in flight on 2 vCPU is comfortable; raise
+    `max_instances` rather than this if the app ever queues.
+  EOT
   type        = number
   default     = 20
 }

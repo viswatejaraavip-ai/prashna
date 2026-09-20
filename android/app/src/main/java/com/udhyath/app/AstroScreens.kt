@@ -103,6 +103,13 @@ fun ClientDetailScreen(nav: NavHostController, pid: String) {
     var tick by remember { mutableIntStateOf(0) }
     LaunchedEffect(pid, tick) {
         client = runCatching { g.api.profile(pid) }.fold({ Load.Ok(it.copy(id = it.id.ifBlank { pid })).also { r -> notes = r.data.notes.orEmpty(); g.account.upsertLocal(r.data) } }, { Load.Err(it) })
+        // Deleting the client from the edit screen pops back to here; there is
+        // nothing left to show, so return to the list instead of an error page.
+        val gone = client as? Load.Err
+        if (gone != null && gone.error.errorKind() == ErrorKind.NOT_FOUND) {
+            g.account.removeLocal(pid)
+            nav.popBackStack()
+        }
     }
     ScreenScaffold(client.dataOrNull?.name ?: stringResource(R.string.client_title), onBack = { nav.popBackStack() }, actions = {
         IconButton(onClick = { nav.navigate(Routes.profileEdit(pid)) }) { Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.profile_edit_title)) }
@@ -163,7 +170,13 @@ fun ProBundleScreen(nav: NavHostController, pid: String) {
         if (user?.isPro == true) state = runCatching { g.api.proBundle(pid) }.fold({ Load.Ok(it) }, { Load.Err(it) })
     }
     ScreenScaffold(stringResource(R.string.pro_bundle), onBack = { nav.popBackStack() }) {
-        if (user?.isPro != true) { ProLockedCard { nav.navigate(Routes.PRO) }; return@ScreenScaffold }
+        val st = state
+        // The server is the authority on the plan (it can expire mid-session),
+        // so a 403 is an upsell, not an error page.
+        if (user?.isPro != true || (st is Load.Err && st.error.errorKind() == ErrorKind.FORBIDDEN)) {
+            ProLockedCard { nav.navigate(Routes.PRO) }
+            return@ScreenScaffold
+        }
         LoadView(state, onRetry = { tick++ }) { bundle ->
             val view = bundle.child("view")
             if (view == null) { EmptyBox(stringResource(R.string.err_server)); return@LoadView }
@@ -211,21 +224,35 @@ fun BrandScreen(onBack: () -> Unit) {
     var err by remember { mutableStateOf<Throwable?>(null) }
     var tick by remember { mutableIntStateOf(0) }
     val savedMsg = stringResource(R.string.saved)
+    // An astrologer who has never saved a brand gets an empty one (the server
+    // sends empty strings; older builds sent `{"brand": null}`, and a 404 is
+    // also treated as "nothing saved yet") — an empty form, not an error.
     LaunchedEffect(tick) {
         state = runCatching { g.api.brand() }.recoverCatching { if (it.errorKind() == ErrorKind.NOT_FOUND) Brand() else throw it }
             .fold({ b = it; Load.Ok(it) }, { Load.Err(it) })
     }
+    fun edit(next: Brand) { b = next; msg = null; err = null }
     ScreenScaffold(stringResource(R.string.brand_title), onBack = onBack) {
         Text(stringResource(R.string.brand_subtitle), color = MaterialTheme.colorScheme.onSurfaceVariant)
         LoadView(state, onRetry = { tick++ }) {
-            OutlinedTextField(b.display_name, { b = b.copy(display_name = it) }, label = { Text(stringResource(R.string.brand_name)) }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(b.phone, { b = b.copy(phone = it) }, label = { Text(stringResource(R.string.brand_phone)) }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(b.logo_url, { b = b.copy(logo_url = it) }, label = { Text(stringResource(R.string.brand_logo)) }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(b.footer, { b = b.copy(footer = it) }, label = { Text(stringResource(R.string.brand_footer)) }, modifier = Modifier.fillMaxWidth(), minLines = 2)
-            BigButton(stringResource(R.string.save), busy = busy, icon = Icons.Default.Badge, onClick = {
-                busy = true; err = null; msg = null
-                scope.launch { runCatching { g.api.saveBrand(b) }.onSuccess { msg = savedMsg }.onFailure { err = it }; busy = false }
-            })
+            OutlinedTextField(b.display_name, { edit(b.copy(display_name = it)) }, label = { Text(stringResource(R.string.brand_name)) },
+                singleLine = true, isError = b.display_name.isBlank(), modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(b.phone, { edit(b.copy(phone = it)) }, label = { Text(stringResource(R.string.brand_phone)) },
+                singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(b.logo_url, { edit(b.copy(logo_url = it)) }, label = { Text(stringResource(R.string.brand_logo)) },
+                singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(b.footer, { edit(b.copy(footer = it)) }, label = { Text(stringResource(R.string.brand_footer)) },
+                modifier = Modifier.fillMaxWidth(), minLines = 2)
+            // The display name is what the PDF is headed with, so it is required.
+            BigButton(stringResource(R.string.save), busy = busy, enabled = b.display_name.isNotBlank(),
+                icon = Icons.Default.Badge, onClick = {
+                    busy = true; err = null; msg = null
+                    scope.launch {
+                        runCatching { g.api.saveBrand(b) }
+                            .onSuccess { saved -> b = saved; msg = savedMsg }.onFailure { err = it }
+                        busy = false
+                    }
+                })
             msg?.let { Text(it, color = BrandColors.Good) }
             err?.let { Text(errorText(it), color = MaterialTheme.colorScheme.error) }
         }

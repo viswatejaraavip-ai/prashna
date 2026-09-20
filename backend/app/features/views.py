@@ -227,6 +227,99 @@ def _doshas(d: Dict, c: _Ctx) -> Dict:
     return {"sections": [{"title": c.t("Doshas"), "items": items}]}
 
 
+def _houses(xs) -> str:
+    return ", ".join(str(h) for h in (xs or []))
+
+
+def _kp(d: Dict, c: _Ctx) -> Dict:
+    """KP: Placidus cusps, planets and the house significators, as the three
+    tables an astrologer reads them in (never the generic key/value dump)."""
+    cols = [c.t("Sign"), c.t("Sign lord"), c.t("Star"), c.t("Star lord"),
+            c.t("Sub lord"), c.t("Sub sub lord")]
+
+    def cells(v: Dict) -> List[str]:
+        return [c.sign(v.get("sign", "")), c.planet(v.get("sign_lord", "")),
+                c.nak(v.get("star", "")), c.planet(v.get("star_lord", "")),
+                c.planet(v.get("sub_lord", "")), c.planet(v.get("sub_sub_lord", ""))]
+
+    cusps = d.get("cusps") or []
+    pl = d.get("planets") or {}
+    sections = [
+        {"title": c.t("KP cusps"), "table": {
+            "columns": [c.t("Cusp")] + cols,
+            "rows": [[str(x.get("cusp", i + 1))] + cells(x) for i, x in enumerate(cusps)]}},
+        {"title": c.t("KP planets"), "table": {
+            "columns": [c.t("Planet")] + cols,
+            "rows": [[c.planet(p) + (" (" + c.t("R") + ")" if pl[p].get("retrograde") else "")]
+                     + cells(pl[p]) for p in PLANETS if isinstance(pl.get(p), dict)]}},
+    ]
+    sig = (d.get("significators") or {}).get("planets") or {}
+    if sig:
+        sections.append({"title": c.t("House significators"), "table": {
+            "columns": [c.t("Planet"), c.t("Star lord"), c.t("Star lord sits in"),
+                        c.t("Houses owned by the star lord"), c.t("Sits in"), c.t("Houses owned")],
+            "rows": [[c.planet(p), c.planet(v.get("star_lord", "")),
+                      str(v.get("star_lord_house", "")), _houses(v.get("star_lord_owns")),
+                      str(v.get("own_house", "")), _houses(v.get("owns"))]
+                     for p, v in sig.items() if isinstance(v, dict)]}})
+    if d.get("system"):
+        sections.append({"title": c.t("Method"), "text": c.t(d["system"])})
+    return {"chart": _chart(cusps[0] if cusps else None, pl), "sections": sections}
+
+
+# (engine key, label) for the six sources of strength, in the classical order.
+_SHADBALA_PARTS = (("sthana_total", "Sthana bala"), ("dig", "Dig bala"),
+                   ("kala_total", "Kala bala"), ("chesta", "Chesta bala"),
+                   ("naisargika", "Naisargika bala"), ("drik", "Drik bala"))
+
+
+def _num(v) -> str:
+    try:
+        return ("%.2f" % float(v)).rstrip("0").rstrip(".")
+    except (TypeError, ValueError):
+        return ""
+
+
+def _shadbala(d: Dict, c: _Ctx) -> Dict:
+    pl = d.get("planets") or {}
+    rows = []
+    for p in PLANETS:
+        v = pl.get(p)
+        if not isinstance(v, dict):
+            continue
+        rows.append([c.planet(p)] + [_num(v.get(k)) for k, _ in _SHADBALA_PARTS]
+                    + [_num(v.get("total_virupas")), _num(v.get("rupas")),
+                       _num(v.get("required_virupas")),
+                       c.t("Strong") if v.get("strong") else c.t("Weak")])
+    sections = [{"title": c.t("Shadbala (six sources of strength)"), "table": {
+        "columns": [c.t("Planet")] + [c.t(label) for _, label in _SHADBALA_PARTS]
+                   + [c.t("Total (virupas)"), c.t("Rupas"), c.t("Needed"), c.t("Verdict")],
+        "rows": rows}}]
+    if d.get("ranking"):
+        sections.append({"title": c.t("Strongest to weakest"),
+                         "rows": [["%d." % (i + 1), c.planet(p)]
+                                  for i, p in enumerate(d["ranking"])]})
+    if d.get("system"):
+        sections.append({"title": c.t("Method"), "text": c.t(d["system"])})
+    return {"sections": sections}
+
+
+def _ashtakavarga(d: Dict, c: _Ctx) -> Dict:
+    """One table the way it is drawn on paper: 12 signs down, the seven
+    planets' bindus across, Sarvashtakavarga in the last column."""
+    bav = d.get("bav") or {}
+    sav = d.get("sav") or {}
+    planets = [p for p in PLANETS if isinstance(bav.get(p), dict)]
+    rows = [[c.sign(s)] + [str(bav[p].get(s, "")) for p in planets] + [str(sav.get(s, ""))]
+            for s in SIGNS]
+    totals = d.get("bav_totals") or {}
+    rows.append([c.t("Total")] + [str(totals.get(p, "")) for p in planets]
+                + [str(d.get("sav_total", ""))])
+    return {"sections": [{"title": c.t("Ashtakavarga (bindus per sign)"), "table": {
+        "columns": [c.t("Sign")] + [c.planet(p) for p in planets] + [c.t("SAV")],
+        "rows": rows}}]}
+
+
 def _panchanga(d: Dict, c: _Ctx) -> Dict:
     th = d.get("tithi") or {}
     nk = d.get("nakshatra") or {}
@@ -336,7 +429,8 @@ def _generic(d: Dict, c: _Ctx, title: str = "") -> List[Dict]:
 
 
 _BUILDERS = {"rasi": _rasi, "navamsa": _varga, "bhava": _bhava, "dashas": _dashas, "yogas": _yogas,
-             "doshas": _doshas, "panchanga": _panchanga, "gemstones": _gemstones}
+             "doshas": _doshas, "panchanga": _panchanga, "gemstones": _gemstones,
+             "kp": _kp, "shadbala": _shadbala, "ashtakavarga": _ashtakavarga}
 
 
 def _build_once(kind: str, division: Optional[str], data: Dict, c: _Ctx) -> Dict:

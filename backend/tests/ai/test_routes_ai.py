@@ -88,3 +88,74 @@ def test_voice_endpoint(client, env, monkeypatch):
     assert r.status_code == 200, body
     assert body["transcript"].startswith("నా") and body["audio_b64"]
     assert body["status"] == "ok" and body["charged_units"] == 1000
+
+
+# ---------------- report progress & pricing ----------------
+
+@pytest.fixture
+def reports_client(client, monkeypatch):
+    """routes_ai wired to a stub reports module (the module itself is covered
+    by test_reports.py; here we only check the HTTP surface)."""
+    import types
+    from app.ai.pipeline import AiError
+    from app import routes_ai
+
+    state = {"status": "generating", "done": 4}
+
+    def progress(uid, rid):
+        if rid != "r1" or uid != UID:
+            raise AiError(404, "not_found", "Report not found")
+        done = state["done"]
+        return {"report_id": rid, "status": state["status"], "percent": int(done * 100 / 18),
+                "sections_done": done, "sections_total": 18,
+                "current_chapter": {"idx": done + 1, "title": "వృత్తి"},
+                "chapters": [{"idx": i, "title": "ch%d" % i, "done": i <= done}
+                             for i in range(1, 19)],
+                "eta_seconds": 90, "elapsed_seconds": 40, "error": None,
+                "refund_pending": False, "fee_units": 40000}
+
+    stub = types.SimpleNamespace(
+        progress=progress, REPORT_BUDGET_S=300,
+        report_fee_units=lambda lang="": {"te": 40000, "hi": 25000}.get(lang, 45000),
+        report_pricing=lambda: {"report_price_units": 45000,
+                                "report_price_units_by_lang": {"te": 40000, "hi": 25000},
+                                "report_chapters": 18, "report_words": 18000,
+                                "report_eta_seconds": 300})
+    monkeypatch.setattr(routes_ai, "_reports", lambda: stub)
+    monkeypatch.setattr(routes_ai, "REPORT_POLL_S", 0.01)
+    client.state = state
+    return client
+
+
+def test_report_progress_endpoint(reports_client):
+    r = reports_client.get("/api/reports/r1/progress")
+    body = r.json()
+    assert r.status_code == 200, body
+    assert body["percent"] == 22 and body["sections_total"] == 18
+    assert body["current_chapter"]["idx"] == 5 and body["eta_seconds"] == 90
+    assert sum(1 for c in body["chapters"] if c["done"]) == 4
+
+
+def test_report_progress_not_found(reports_client):
+    r = reports_client.get("/api/reports/nope/progress")
+    assert r.status_code == 404 and r.json()["code"] == "not_found"
+
+
+def test_report_progress_stream(reports_client):
+    reports_client.state["status"] = "ready"
+    r = reports_client.get("/api/reports/r1/progress/stream")
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("text/event-stream")
+    events = [blk for blk in r.text.split("\n\n") if blk.startswith("event:")]
+    assert events[0].startswith("event: progress")
+    assert events[-1].startswith("event: done")
+    assert json.loads(events[-1].split("data: ", 1)[1])["status"] == "ready"
+
+
+def test_report_pricing_endpoint_uses_the_users_language(reports_client):
+    r = reports_client.get("/api/reports/pricing")
+    body = r.json()
+    assert r.status_code == 200, body
+    assert body["lang"] == "te" and body["report_price_units"] == 40000
+    assert body["report_price_units_by_lang"]["hi"] == 25000
+    assert body["report_chapters"] == 18 and body["report_eta_seconds"] == 300

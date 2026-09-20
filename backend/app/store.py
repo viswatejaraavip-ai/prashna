@@ -8,6 +8,7 @@ GOOGLE_CLOUD_PROJECT; the client then talks to the emulator.
 """
 
 import os
+import threading
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Optional
@@ -31,14 +32,21 @@ DEFAULT_LANG = os.environ.get("DEFAULT_LANG", "te")
 IST = timezone(timedelta(hours=5, minutes=30))
 
 _fs = None
+_fs_lock = threading.Lock()
 
 
 def fs():
-    """Process-wide Firestore client (lazy; honours FIRESTORE_EMULATOR_HOST)."""
+    """Process-wide Firestore client (lazy; honours FIRESTORE_EMULATOR_HOST).
+
+    Locked because the warm-up thread (main_gcp) and the first request can
+    both reach this on a cold instance; building the client twice would mean
+    two ADC token fetches and two gRPC channels."""
     global _fs
     if _fs is None:
-        from google.cloud import firestore
-        _fs = firestore.Client(project=GCP_PROJECT or None)
+        with _fs_lock:
+            if _fs is None:
+                from google.cloud import firestore
+                _fs = firestore.Client(project=GCP_PROJECT or None)
     return _fs
 
 
@@ -68,6 +76,7 @@ _FLAG_DEFAULTS = {
     "maintenance_message": "",
 }
 _flags_cache: Dict = {"at": 0.0, "val": None}
+FLAGS_TIMEOUT = float(os.environ.get("FLAGS_READ_TIMEOUT_SECONDS", "10"))
 
 
 def get_flags() -> Dict:
@@ -75,7 +84,15 @@ def get_flags() -> Dict:
         return _flags_cache["val"]
     val = dict(_FLAG_DEFAULTS)
     try:
-        snap = fs().collection("config_flags").document("global").get()
+        # With no timeout the client retries for ~5 minutes when Firestore or
+        # the credentials are unreachable, and every request that needs flags
+        # hangs with it. Falling back to the defaults after a few seconds is
+        # the right trade for a kill-switch document.
+        ref = fs().collection("config_flags").document("global")
+        try:
+            snap = ref.get(timeout=FLAGS_TIMEOUT)
+        except TypeError:  # test doubles take no kwargs
+            snap = ref.get()
         if snap.exists:
             val.update(snap.to_dict() or {})
     except Exception:  # flags must never take the app down

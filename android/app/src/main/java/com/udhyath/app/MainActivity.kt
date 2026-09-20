@@ -46,6 +46,8 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -57,7 +59,9 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        Notifications.createChannels(this) // localized channel names after a language switch
+        // Re-label the channels after a language switch - off the main thread,
+        // it is not needed to draw the first frame.
+        graph.scope.launch(kotlinx.coroutines.Dispatchers.Default) { Notifications.createChannels(this@MainActivity) }
         pendingLink.value = linkFrom(intent)
         // We route deep links ourselves (after onboarding); stop NavHost from also handling this intent.
         intent?.data = null
@@ -165,21 +169,36 @@ fun AppRoot(s: AppSettings, pendingLink: MutableStateFlow<Uri?>) {
         if (expired) { g.account.signOut(); signedIn = false; AppEvents.sessionExpired.value = false }
     }
 
-    // Load the signed-in user + profiles once per sign-in.
+    // Load the signed-in user + profiles once per sign-in. /api/me and
+    // /api/profiles do not depend on each other, so they go out together;
+    // everything that the first screen does not need (push token, Play
+    // purchase restore, the language patch) runs after the gate is open.
     LaunchedEffect(signedIn, bootTick) {
         if (!signedIn) return@LaunchedEffect
         bootError = null
         runCatching {
-            val u = g.account.refreshMe()
+            coroutineScope {
+                val me = async { g.account.refreshMe() }
+                val profiles = async { g.account.refreshProfiles() }
+                val u = me.await()
+                profiles.await()
+                u
+            }
+        }.onSuccess { u ->
             if (u.disclaimer_accepted_at != null) g.settings.setRoleChosen(true)
             // Terms changed since last acceptance -> the consent screen shows again.
             g.settings.setDisclaimerAccepted(u.terms_accepted)
-            // Keep the server's language in step with the device choice.
-            if (s.lang != null && u.lang != s.lang.code) runCatching { g.api.patchMe(lang = s.lang.code) }
-            g.account.refreshProfiles()
-            g.account.syncFcmToken()
-            runCatching { g.billing.restore() }
-        }.onFailure { bootError = it }
+            g.account.launch {
+                // Keep the server's language in step with the device choice.
+                if (s.lang != null && u.lang != s.lang.code) g.api.patchMe(lang = s.lang.code)
+            }
+            g.account.launch { g.account.syncFcmToken() }
+            g.account.launch { g.billing.restore() }
+        }.onFailure {
+            // A cached payload is already on screen; only block on the error
+            // when there is nothing to show.
+            bootError = it
+        }
     }
 
     Column(Modifier.fillMaxSize()) {

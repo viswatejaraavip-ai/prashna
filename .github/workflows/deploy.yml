@@ -1,0 +1,111 @@
+name: Deploy to Cloud Run
+
+# Runs only after the CI workflow has SUCCEEDED on `main`, and deploys the
+# exact commit CI tested. Authentication is Workload Identity Federation —
+# there is no service-account key anywhere in this repo or in GitHub.
+#
+# Owner setup (one-off) is in docs/launch/TESTING.md, "Deploy (GCP)":
+#   repo variables : GCP_PROJECT_ID, GCP_REGION, GCP_SERVICE, GCP_WIF_PROVIDER,
+#                    GCP_DEPLOYER_SA, GCP_BUILD_SA, GCP_BUILD_BUCKET
+#   terraform      : deploy/gcp/terraform/cicd.tf  (pool, provider, deployer SA)
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: "Commit SHA to deploy (default: current main)"
+        required: false
+
+concurrency:
+  group: deploy-cloud-run
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write          # required to mint the OIDC token for WIF
+
+jobs:
+  deploy:
+    name: Build and deploy
+    # workflow_run fires for failed runs too; only a green CI deploys.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    environment: production        # optional manual approval gate in GitHub
+    env:
+      PROJECT_ID: ${{ vars.GCP_PROJECT_ID || '$PROJECT_ID' }}
+      REGION: ${{ vars.GCP_REGION || 'asia-south1' }}
+      SERVICE: ${{ vars.GCP_SERVICE || 'udhyath-api' }}
+      BUILD_SA: ${{ vars.GCP_BUILD_SA || 'udhyath-build@$PROJECT_ID.iam.gserviceaccount.com' }}
+      BUILD_BUCKET: ${{ vars.GCP_BUILD_BUCKET || '$PROJECT_ID-udhyath-build' }}
+    steps:
+      - name: Resolve the commit CI tested
+        id: sha
+        run: |
+          SHA="${{ github.event.inputs.sha || github.event.workflow_run.head_sha || github.sha }}"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          echo "short=${SHA:0:7}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.sha.outputs.sha }}
+
+      - name: Authenticate to Google Cloud (Workload Identity Federation)
+        uses: google-github-actions/auth@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SA }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Cloud Build (build -> push -> deploy)
+        run: |
+          set -euo pipefail
+          gcloud builds submit \
+            --project="$PROJECT_ID" \
+            --config=cloudbuild.yaml \
+            --region="$REGION" \
+            --service-account="projects/$PROJECT_ID/serviceAccounts/$BUILD_SA" \
+            --gcs-source-staging-dir="gs://$BUILD_BUCKET/source" \
+            --substitutions=SHORT_SHA=${{ steps.sha.outputs.short }}
+
+      - name: Smoke test the new revision
+        run: |
+          set -euo pipefail
+          URL=$(gcloud run services describe "$SERVICE" --project="$PROJECT_ID" \
+                  --region="$REGION" --format='value(status.url)')
+          echo "Service: $URL"
+          for i in 1 2 3 4 5; do
+            code=$(curl -s -o /tmp/health -w '%{http_code}' "$URL/healthz" || true)
+            [ "$code" = "200" ] && break
+            echo "attempt $i: HTTP $code — retrying"; sleep 10
+          done
+          [ "$code" = "200" ] || { echo "healthz failed"; exit 1; }
+          curl -fsS "$URL/api/pricing" > /tmp/pricing
+          python -c "import json;d=json.load(open('/tmp/pricing'));assert d['query_price_units']>0,d;print('pricing ok', d['query_price_units'])"
+          code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$URL/internal/cron/purge-deleted")
+          [ "$code" = "401" ] || { echo "cron endpoint is not protected (HTTP $code)"; exit 1; }
+          REV=$(gcloud run services describe "$SERVICE" --project="$PROJECT_ID" \
+                  --region="$REGION" --format='value(status.latestReadyRevisionName)')
+          {
+            echo "### Deployed"
+            echo ""
+            echo "- commit: \`${{ steps.sha.outputs.short }}\`"
+            echo "- service: \`$SERVICE\` in \`$REGION\`"
+            echo "- revision: \`$REV\`"
+            echo "- url: $URL"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Roll back on a failed smoke test
+        if: failure()
+        run: |
+          echo "::warning::Deploy or smoke test failed. Roll back with:"
+          echo "gcloud run services update-traffic $SERVICE --project=$PROJECT_ID \\"
+          echo "  --region=$REGION --to-revisions=<previous-revision>=100"

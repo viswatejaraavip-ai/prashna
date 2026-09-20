@@ -35,6 +35,19 @@ data class AppSettings(
 )
 
 class SettingsStore(private val context: Context) {
+    /**
+     * The chosen language, mirrored into SharedPreferences.
+     *
+     * DataStore can only be read from a coroutine, and Application.onCreate
+     * used to `runBlocking` on it purely to have a language for the
+     * Accept-Language header — a disk read on the main thread before the
+     * first frame. The mirror is readable synchronously, so start-up no
+     * longer blocks and requests still carry the right language.
+     */
+    private val mirror = context.getSharedPreferences("udhyath_cache", Context.MODE_PRIVATE)
+
+    val langCodeNow: String? get() = mirror.getString("lang", null)
+
     private object K {
         val lang = stringPreferencesKey("lang")
         val largeText = booleanPreferencesKey("large_text")
@@ -64,7 +77,10 @@ class SettingsStore(private val context: Context) {
 
     suspend fun current(): AppSettings = settings.first()
 
-    suspend fun setLang(lang: AppLang) = context.dataStore.edit { it[K.lang] = lang.code }
+    suspend fun setLang(lang: AppLang) {
+        mirror.edit().putString("lang", lang.code).apply()
+        context.dataStore.edit { it[K.lang] = lang.code }
+    }
     suspend fun setLargeText(v: Boolean) = context.dataStore.edit { it[K.largeText] = v }
     suspend fun setChartStyle(v: String) = context.dataStore.edit { it[K.chartStyle] = v }
     suspend fun setActiveProfile(id: String?) = context.dataStore.edit {
@@ -101,6 +117,42 @@ class SettingsStore(private val context: Context) {
         it.remove(K.activeProfile); it.remove(K.disclaimer); it.remove(K.roleChosen)
         it.remove(K.snapshotSeen); it.remove(K.watchedReports)
     }
+}
+
+/**
+ * The last home payload, kept so a relaunch paints the real screen instead of
+ * a spinner while `/api/me` and `/api/profiles` are in flight.
+ *
+ * SharedPreferences rather than DataStore on purpose: it can be read
+ * synchronously while the process is starting, which is the whole point.
+ * Nothing secret goes in here (no token, no phone/email are needed by the
+ * first paint), and it is cleared on sign-out.
+ */
+@kotlinx.serialization.Serializable
+data class AccountSnapshot(
+    val user: User? = null,
+    val pricing: Pricing = Pricing(),
+    val profiles: List<Profile> = emptyList(),
+)
+
+class AccountCache(context: Context) {
+    private val prefs = context.getSharedPreferences("udhyath_cache", Context.MODE_PRIVATE)
+
+    fun read(): AccountSnapshot? = runCatching {
+        prefs.getString(KEY, null)?.let { AppJson.decodeFromString(AccountSnapshot.serializer(), it) }
+    }.getOrNull()
+
+    fun write(snapshot: AccountSnapshot) {
+        runCatching {
+            prefs.edit()
+                .putString(KEY, AppJson.encodeToString(AccountSnapshot.serializer(), snapshot))
+                .apply()
+        }
+    }
+
+    fun clear() = prefs.edit().remove(KEY).apply()
+
+    private companion object { const val KEY = "account_v1" }
 }
 
 /**

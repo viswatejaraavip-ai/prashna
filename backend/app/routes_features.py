@@ -28,7 +28,7 @@ from .features import profiles as prof_mod
 from .features import rectify as rectify_mod
 from .features import snapshot as snapshot_mod
 from .features.common import (FeatureError, FeatureRoute, birth_dict, invalid, japi,
-                              require_astrologer, require_pro, tz_today)
+                              require_astrologer, require_pro, t, tz_today)
 
 router = APIRouter(route_class=FeatureRoute, tags=["features"])
 
@@ -362,21 +362,24 @@ class ClientPatch(BaseModel):
 
 
 class BrandIn(BaseModel):
-    display_name: str
+    """Every field is optional so a partial body is rejected by brand.py with a
+    localized message instead of FastAPI's raw English validation array."""
+
+    display_name: str = ""
     phone: str = ""
     logo_url: str = ""
     footer: str = ""
 
 
 def astro_ctx(c: Ctx = Depends(ctx)) -> Ctx:
-    require_astrologer(c.user)
+    require_astrologer(c.user, c.lang)
     return c
 
 
-def _client(uid: str, pid: str) -> Dict:
+def _client(uid: str, pid: str, lang: str = "en") -> Dict:
     prof = prof_mod.get(uid, pid)
     if prof.get("relation") != "client":
-        raise FeatureError(404, "not_found", "Client not found")
+        raise FeatureError(404, "not_found", t(lang, "errors.client_not_found"))
     return prof
 
 
@@ -398,29 +401,45 @@ def create_client(body: ClientIn, c: Ctx = Depends(astro_ctx)):
     data = body.model_dump()
     data["birth"] = {k: v for k, v in data["birth"].items() if v is not None}
     data["relation"] = "client"
-    return prof_mod.create(c.uid, c.user, data)
+    return with_place_local(prof_mod.create(c.uid, c.user, data), c.lang)
+
+
+@router.get("/api/astro/clients/{pid}")
+def get_client(pid: str, c: Ctx = Depends(astro_ctx)):
+    return with_place_local(_client(c.uid, pid, c.lang), c.lang)
 
 
 @router.patch("/api/astro/clients/{pid}")
 def patch_client(pid: str, body: ClientPatch, c: Ctx = Depends(astro_ctx)):
-    _client(c.uid, pid)
-    return prof_mod.update(c.uid, pid, body.model_dump(exclude_unset=True))
+    _client(c.uid, pid, c.lang)
+    patch = body.model_dump(exclude_unset=True)
+    patch.pop("relation", None)  # a client stays a client
+    return with_place_local(prof_mod.update(c.uid, pid, patch), c.lang)
+
+
+@router.delete("/api/astro/clients/{pid}")
+def delete_client(pid: str, c: Ctx = Depends(astro_ctx)):
+    _client(c.uid, pid, c.lang)
+    prof_mod.delete(c.uid, pid)
+    return {"ok": True}
 
 
 @router.get("/api/astro/clients/{pid}/pro-bundle")
 def pro_bundle(pid: str, c: Ctx = Depends(astro_ctx)):
-    require_pro(c.user)
-    return charts_mod.pro_bundle(_client(c.uid, pid), c.lang)
+    require_pro(c.user, c.lang)
+    return charts_mod.pro_bundle(_client(c.uid, pid, c.lang), c.lang)
 
 
 @router.get("/api/astro/brand")
 def get_brand(c: Ctx = Depends(astro_ctx)):
-    return {"brand": brand_mod.get_brand(c.uid)}
+    # Never `null`: an astrologer who has not saved a brand gets an empty one,
+    # so the settings form always has the four fields to bind to.
+    return {"brand": brand_mod.get_brand(c.uid) or brand_mod.blank()}
 
 
 @router.put("/api/astro/brand")
 def put_brand(body: BrandIn, c: Ctx = Depends(astro_ctx)):
-    return {"brand": brand_mod.put_brand(c.uid, body.model_dump())}
+    return {"brand": brand_mod.put_brand(c.uid, body.model_dump(), c.lang)}
 
 
 # ---------- cron (Cloud Scheduler, OIDC) ----------

@@ -15,6 +15,25 @@ import pytest  # noqa: E402
 from ai_fakes import FLAGS, FakeBilling, FakeClaude, FakeGemini, FakeRepo  # noqa: E402
 
 
+@pytest.fixture(autouse=True)
+def _join_tail(monkeypatch):
+    """The pipeline files the trace, memory and rollups on a background
+    thread after the answer is returned (pipeline.ASYNC_TAIL). Tests assert
+    on those writes, so join the tail before handing the Result back — the
+    real async path still runs, it just becomes deterministic here."""
+    from app.ai import pipeline
+
+    real = pipeline.run_query
+
+    def waited(*a, **kw):
+        return real(*a, **kw).wait(timeout=10)
+
+    monkeypatch.setattr(pipeline, "run_query", waited)
+    # For the few tests that need to observe the window between "answer
+    # delivered" and "bookkeeping done".
+    monkeypatch.setattr(pipeline, "run_query_nowait", real, raising=False)
+
+
 @pytest.fixture
 def env(monkeypatch):
     """Wire fakes into the pipeline; returns a namespace to tweak per test."""

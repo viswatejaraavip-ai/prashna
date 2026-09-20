@@ -10,11 +10,12 @@ that could push the query over the ceiling.
 """
 
 import logging
+import os
 from typing import Callable, Dict, List, Optional, Tuple
 
 from .. import agent
 from . import budget as budget_mod
-from . import costs, llm
+from . import clock, costs, llm
 from .planner import LANG_NAMES
 
 log = logging.getLogger("udhyath.ai.reasoner")
@@ -27,6 +28,11 @@ _BASE = agent.SYSTEM_PROMPT.split("BILLING MARKER")[0].rstrip()
 SYSTEM_PROMPT = _BASE + """
 
 HOW THIS CONSULTATION WORKS:
+- "Now:" at the top of the request is the real present moment (IST). Your own
+  sense of the date is training data and is wrong — never use it. Work out
+  "currently", "this year", "the coming months" and the client's age from
+  "Now:" alone, and compare every date in <facts_brief> against it: earlier
+  is past, later is future. Never call a finished period ongoing.
 - The chart facts for this question were computed with Swiss Ephemeris and
   are given to you in <facts_brief>. They are authoritative: never invent or
   "correct" placements, dates or dashas, and never estimate positions from
@@ -76,7 +82,10 @@ def _user_block(*, lang: str, mode: str, question: str, brief: str, summary: str
     who = "%s (%s)" % (profile.get("name") or "the client", profile.get("relation") or "self")
     if not profile.get("time_known", True):
         who += " — birth time unknown"
-    parts = ["Answer language: %s." % LANG_NAMES.get(lang, lang),
+    # "Now:" comes first so it anchors everything that follows. Without it
+    # Opus dates "this year" from its training data.
+    parts = ["Now: %s." % clock.stamp(),
+             "Answer language: %s." % LANG_NAMES.get(lang, lang),
              "Length target: about %d words (hard limit — stop well before it)." % target_words,
              "Chart of: %s." % who]
     if summary:
@@ -95,28 +104,62 @@ def _system(mode: str) -> List[Dict]:
 
 
 def _target_words(max_tokens: int, lang: str) -> int:
-    return max(40, int(max_tokens * 0.8 / costs.TOKENS_PER_WORD.get(lang, 5.0)))
+    """Words to ask for, from the part of max_tokens the answer itself gets
+    (a thinking model spends the rest reasoning — the reply must not get
+    longer just because its cap was widened for thinking)."""
+    visible = budget_mod.answer_tokens(max_tokens)
+    return max(40, int(visible * 0.8 / costs.TOKENS_PER_WORD.get(lang, 5.0)))
+
+
+def _estimate(system: List[Dict], messages: List[Dict]) -> int:
+    """Pessimistic Indic-aware upper bound (costs.CHARS_PER_TOKEN)."""
+    text = "".join(b["text"] for b in system) + "".join(m["content"] for m in messages)
+    return costs.estimate_tokens(text) + 10
 
 
 def _count(system: List[Dict], messages: List[Dict]) -> Tuple[int, bool]:
     exact = llm.count_tokens(system, messages)
     if exact is not None:
         return exact, True
-    text = "".join(b["text"] for b in system) + "".join(m["content"] for m in messages)
-    return costs.estimate_tokens(text) + 10, False
+    return _estimate(system, messages), False
+
+
+# Opus-side effort. `output_config.effort` trades thoroughness for tokens and
+# wall clock; readings that weigh several dasha systems against each other
+# want the default, lookups (today's panchanga, a festival date, a muhurta
+# window) do not. Set CLAUDE_EFFORT_SIMPLE="" to disable the step-down.
+LOW_EFFORT_INTENTS = {s.strip() for s in os.environ.get(
+    "CLAUDE_LOW_EFFORT_INTENTS", "panchanga,festival,muhurta,greeting").split(",")
+    if s.strip()}
+EFFORT_SIMPLE = os.environ.get("CLAUDE_EFFORT_SIMPLE", "low").strip().lower()
+
+
+def effort_for(intent: str) -> Optional[str]:
+    """None = the configured default (llm.CLAUDE_EFFORT)."""
+    if EFFORT_SIMPLE and intent in LOW_EFFORT_INTENTS:
+        return EFFORT_SIMPLE
+    return None
+
+
+COUNT_TOKENS_ALWAYS = os.environ.get("CLAUDE_COUNT_TOKENS_ALWAYS", "0") == "1"
 
 
 def fit(*, lang: str, mode: str, question: str, brief: str, summary: str,
         memory: List[str], profile: Dict, remaining_paise: float,
-        tts_tier: Optional[str]) -> Dict:
+        tts_tier: Optional[str], intent: str = "") -> Dict:
     """Choose context + max_tokens that fit the remaining budget.
 
     Shrink order: memory -> summary -> brief (down to 35%). Returns a dict
-    with system, messages, max_tokens, in_tokens, exact, shrunk, fits."""
-    mode_max = (budget_mod.VOICE_MAX_OUTPUT_TOKENS if mode == "voice"
-                else budget_mod.TEXT_MAX_OUTPUT_TOKENS)
-    mode_min = (budget_mod.VOICE_MIN_OUTPUT_TOKENS if mode == "voice"
-                else budget_mod.TEXT_MIN_OUTPUT_TOKENS)
+    with system, messages, max_tokens, in_tokens, exact, shrunk, fits.
+
+    The exact Anthropic count-tokens call is a serial round trip in front of
+    Opus, so we only pay for it when it can change the answer: if the
+    *pessimistic* estimate already affords the mode's full output cap, the
+    exact number cannot raise max_tokens and is skipped. The estimate is an
+    upper bound (costs.estimate_tokens), so the ceiling guarantee is
+    unchanged either way — we can only ever under-spend."""
+    mode_max = budget_mod.mode_max_tokens(mode)
+    mode_min = budget_mod.mode_min_tokens(mode)
     system = _system(mode)
     steps = [("full", memory, summary, brief)]
     steps.append(("no_memory", [], summary, brief))
@@ -130,11 +173,18 @@ def fit(*, lang: str, mode: str, question: str, brief: str, summary: str,
         msgs = [{"role": "user", "content": _user_block(
             lang=lang, mode=mode, question=question, brief=br, summary=summ,
             memory=mem, profile=profile, target_words=_target_words(mode_max, lang))}]
-        in_tok, exact = _count(system, msgs)
+        est = _estimate(system, msgs)
+        if not COUNT_TOKENS_ALWAYS and budget_mod.opus_output_cap(
+                remaining_paise, est + 8, tts_tier=tts_tier,
+                mode_max=mode_max) >= mode_max:
+            in_tok, exact = est, False     # worst case already affords mode_max
+        else:
+            in_tok, exact = _count(system, msgs)
         cap = budget_mod.opus_output_cap(remaining_paise, in_tok + 8,
                                          tts_tier=tts_tier, mode_max=mode_max)
         plan = {"system": system, "in_tokens": in_tok, "exact": exact,
                 "max_tokens": cap, "shrunk": label, "fits": cap >= mode_min,
+                "effort": effort_for(intent),
                 "args": dict(lang=lang, mode=mode, question=question, brief=br,
                              summary=summ, memory=mem, profile=profile)}
         if plan["fits"]:
@@ -159,13 +209,15 @@ def trim_to_sentence(text: str) -> str:
 def answer(plan: Dict, on_delta: Optional[Callable[[str], None]] = None
            ) -> Tuple[str, "llm.Stage"]:
     text, stop, stage = llm.opus("reason", plan["system"], plan["messages"],
-                                 max_tokens=plan["max_tokens"], on_delta=on_delta)
+                                 max_tokens=plan["max_tokens"], on_delta=on_delta,
+                                 effort=plan.get("effort"))
     if stop == "max_tokens":
         trimmed = trim_to_sentence(text)
         if on_delta and trimmed.endswith("…") and not text.endswith("…"):
             on_delta("…")
         text = trimmed
-    stage.detail = {"max_tokens": plan["max_tokens"], "stop": stop,
-                    "in_tok_estimate": plan["in_tokens"], "exact_count": plan["exact"],
-                    "shrunk": plan["shrunk"]}
+    stage.detail = dict(stage.detail,
+                        max_tokens=plan["max_tokens"], stop=stop,
+                        in_tok_estimate=plan["in_tokens"],
+                        exact_count=plan["exact"], shrunk=plan["shrunk"])
     return text, stage

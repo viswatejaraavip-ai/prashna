@@ -5,7 +5,10 @@ and billing. No network, no Firestore."""
 import json
 import math
 import os
+import re
 import sys
+import threading
+import time
 import types
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -63,10 +66,12 @@ class FakeGemini:
         self.full = use_full_output
         self.jcpt = json_chars_per_token
         self.calls = []
+        self.sent_text = []        # full system+user text of every call
         self.models = self
 
     def generate_content(self, model, contents, config):
         system = config.get("system_instruction", "")
+        self.sent_text.append(system + "\n" + contents)
         max_out = config["max_output_tokens"]
         # engine JSON tokenizes densely (digits, punctuation)
         prompt = realistic_tokens(system) + int(len(contents) / self.jcpt) \
@@ -133,11 +138,27 @@ class FakeClaude:
     our pessimistic estimate)."""
 
     def __init__(self, lang="te", out_fraction=0.6, count_ok=True, report_in="realistic",
-                 reject_effort=False):
+                 reject_effort=False, reject_warm=False, chapter_delay=0.0,
+                 fail_chapters=()):
         self.lang, self.frac, self.count_ok = lang, out_fraction, count_ok
         self.report_in, self.reject_effort = report_in, reject_effort
-        self.calls = []
+        self.reject_warm = reject_warm          # API without max_tokens=0 prefill
+        self.chapter_delay = chapter_delay      # seconds per streamed call
+        self.fail_chapters = set(fail_chapters)  # report chapter numbers that blow up
+        self.calls, self.warms = [], []
+        self.live, self.max_live = 0, 0         # concurrency actually reached
+        self._lock = threading.Lock()
         self.messages = self
+
+    def create(self, **kw):
+        """Non-streamed prefill call: the report's cache pre-warm
+        (`max_tokens=0`). Returns usage only, no content."""
+        if self.reject_warm:
+            raise RuntimeError("max_tokens: 0 is not supported")
+        self.warms.append(kw)
+        final = _Final("", 0, 0, "max_tokens")
+        final.usage.cache_creation_input_tokens = self._in(kw["system"], kw["messages"])
+        return final
 
     def with_options(self, **kw):
         return self
@@ -160,7 +181,27 @@ class FakeClaude:
             err = RuntimeError("400 output_config not supported")
             err.status_code = 400
             raise err
-        self.calls.append(kw)
+        with self._lock:
+            self.calls.append(kw)
+            self.live += 1
+            self.max_live = max(self.max_live, self.live)
+        try:
+            return self._stream(kw)
+        finally:
+            with self._lock:
+                self.live -= 1
+
+    def _chapter_no(self, kw):
+        """Report chapter number from the 'Write chapter N of M' prompt."""
+        m = re.search(r"Write chapter (\d+) of", "".join(
+            str(msg.get("content", "")) for msg in kw.get("messages", [])))
+        return int(m.group(1)) if m else 0
+
+    def _stream(self, kw):
+        if self.chapter_delay:
+            time.sleep(self.chapter_delay)
+        if self._chapter_no(kw) in self.fail_chapters:
+            raise RuntimeError("overloaded_error: the model is overloaded")
         max_tokens = kw["max_tokens"]
         out = max(1, int(max_tokens * self.frac))
         stop = "max_tokens" if self.frac >= 1.0 else "end_turn"

@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import Dict, Optional
 
 from . import views
-from .common import birth_dict, invalid, is_pro, forbidden, japi, jc
+from .common import birth_dict, invalid, is_pro, forbidden, japi, jc, t
 
 BASIC_KINDS = ("rasi", "navamsa", "varga", "bhava", "dashas", "panchanga",
                "yogas", "doshas", "gemstones")
@@ -43,8 +43,8 @@ def chart(profile: Dict, user: Dict, kind: str, division: Optional[str], lang: s
           year: Optional[int] = None) -> Dict:
     kind, div = normalise_kind(kind, division)
     if needs_pro(kind, div) and not is_pro(user):
-        raise forbidden("'%s' is an astrologer-grade chart and needs an active Pro plan"
-                        % (kind if kind != "varga" else "all vargas"))
+        name = t(lang, "chart_kinds").get("all_vargas" if kind == "varga" else kind, kind)
+        raise forbidden(t(lang, "errors.pro_needed_chart", chart=name))
     birth = birth_dict(profile, lang)
     try:
         if kind == "rasi":

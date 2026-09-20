@@ -9,9 +9,12 @@ once per account AND once per device. The raw device id never leaves this
 module - only a salted SHA-256 is stored (``trial_devices/{hash}``).
 """
 
+import base64
 import hashlib
+import json
 import logging
 import os
+import time
 from typing import Dict, Optional, Tuple
 
 from . import billing, store
@@ -21,6 +24,15 @@ log = logging.getLogger("udhyath.auth")
 TRIAL_CREDIT_UNITS = int(os.environ.get("TRIAL_CREDIT_UNITS", "1000"))
 _DEVICE_SALT = os.environ.get("DEVICE_HASH_SALT", "udhyath-device-v1")
 _PRIVATE_USER_FIELDS = ("device_hashes", "fcm_tokens")
+
+# firebase-admin's ``check_revoked=True`` adds a synchronous Identity Toolkit
+# round trip (getAccountInfo) to every sign-in — ~250-350 ms of the ~550 ms
+# the endpoint used to take. It buys very little here: Firebase ID tokens
+# live one hour, sign-in itself un-deletes an account in the 30-day grace
+# period, and the only other revocation we do is on soft delete, which the
+# very next sign-in would reverse anyway. Set AUTH_CHECK_REVOKED=1 to put the
+# check back.
+CHECK_REVOKED = os.environ.get("AUTH_CHECK_REVOKED", "0").lower() in ("1", "true", "yes")
 
 _app = None
 
@@ -44,11 +56,50 @@ def verify_firebase_token(id_token: str) -> Dict:
     if not id_token:
         raise store.ApiError(401, "Missing Firebase ID token", "forbidden")
     from firebase_admin import auth as fb_auth
+    t0 = time.monotonic()
     try:
-        return fb_auth.verify_id_token(id_token, app=firebase_app(), check_revoked=True)
+        return fb_auth.verify_id_token(id_token, app=firebase_app(),
+                                       check_revoked=CHECK_REVOKED)
     except Exception as exc:  # invalid, expired, revoked, wrong project...
         log.info("firebase token rejected: %s", type(exc).__name__)
         raise store.ApiError(401, "Sign-in failed, please try again", "forbidden")
+    finally:
+        log.info("auth.verify %d ms (check_revoked=%s)",
+                 (time.monotonic() - t0) * 1000, CHECK_REVOKED)
+
+
+def warm() -> None:
+    """Pay firebase-admin's one-off costs on a cold instance before the first
+    real sign-in: app init, the Identity Toolkit credential, and the Google
+    public signing certificates (fetched once per process and then cached by
+    firebase-admin's CacheControl session).
+
+    The warm token is a well-formed but unsigned RS256 token for this project,
+    so the verifier gets all the way to the certificate fetch and then fails
+    on an unknown ``kid`` — which is exactly the work we want done early.
+    Everything is best-effort: a failure here only means the first sign-in
+    pays what it used to."""
+    from firebase_admin import auth as fb_auth
+    app = firebase_app()
+    project = (app.project_id if getattr(app, "project_id", None)
+               else os.environ.get("FIREBASE_PROJECT_ID") or store.GCP_PROJECT)
+    if not project:
+        return
+
+    def seg(obj) -> str:
+        return base64.urlsafe_b64encode(
+            json.dumps(obj, separators=(",", ":")).encode()).rstrip(b"=").decode()
+
+    now = int(time.time())
+    token = "%s.%s.%s" % (
+        seg({"alg": "RS256", "typ": "JWT", "kid": "warmup"}),
+        seg({"aud": project, "iss": "https://securetoken.google.com/%s" % project,
+             "sub": "warmup", "auth_time": now - 60, "iat": now - 60, "exp": now + 3600}),
+        seg({"warmup": True}))
+    try:
+        fb_auth.verify_id_token(token, app=app, check_revoked=False)
+    except Exception:
+        pass  # always fails; the point is the certificate fetch it does first
 
 
 def device_hash(device_id: str) -> str:

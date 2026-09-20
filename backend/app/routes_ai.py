@@ -5,8 +5,10 @@
 import functools
 import json
 import logging
+import os
 import queue
 import threading
+import time
 from typing import Dict
 
 from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
@@ -14,7 +16,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from . import guard, store
-from .ai import pipeline, repo
+from .ai import llm, pipeline, repo
 from .ai.pipeline import AiError
 
 log = logging.getLogger("udhyath.routes_ai")
@@ -22,6 +24,19 @@ log = logging.getLogger("udhyath.routes_ai")
 router = APIRouter()
 
 MAX_AUDIO_BYTES = 2_000_000   # 45 s of 16 kHz LINEAR16 is 1.44 MB
+REPORT_POLL_S = float(os.environ.get("REPORT_PROGRESS_POLL_S", "2"))
+
+
+# Build the Gemini/Anthropic clients (SDK import + TLS handshake) while the
+# Cloud Run instance is starting, so the first question on a cold instance
+# does not pay for it. This module is imported by main.py at startup, which
+# is exactly the right moment; a daemon thread keeps it off the boot path.
+# No-ops unless the provider keys are configured, so tests and local dev
+# never touch the network. AI_WARM_CLIENTS=0 disables it.
+try:
+    llm.warm_clients_async()
+except Exception as _exc:   # pragma: no cover - defensive
+    log.warning("ai warm-up not started: %s", _exc)
 
 
 def _err(status: int, code: str, detail: str) -> JSONResponse:
@@ -205,6 +220,17 @@ def my_reports(uid: str = Depends(store.current_uid)):
     return _reports().list_reports(uid)
 
 
+# Declared before /api/reports/{report_id} so "pricing" is not read as an id.
+@router.get("/api/reports/pricing")
+@_errors
+def report_pricing(request: Request, uid: str = Depends(store.current_uid)):
+    """The real price of a report in the caller's language, before they buy."""
+    lang = store.lang_of(request, store.get_user(uid))
+    out = _reports().report_pricing()
+    out.update(lang=lang, report_price_units=_reports().report_fee_units(lang))
+    return out
+
+
 @router.post("/api/reports/teaser")
 @_errors
 def report_teaser(body: TeaserIn, request: Request, uid: str = Depends(store.current_uid)):
@@ -216,6 +242,46 @@ def report_teaser(body: TeaserIn, request: Request, uid: str = Depends(store.cur
 @_errors
 def get_report(report_id: str, uid: str = Depends(store.current_uid)):
     return _reports().get_report(uid, report_id)
+
+
+@router.get("/api/reports/{report_id}/progress")
+@_errors
+def report_progress(report_id: str, uid: str = Depends(store.current_uid)):
+    """Live progress for the report screen: percent, the chapter being
+    written, the chapter list with what is done, and an ETA in seconds.
+    Cheap enough to poll every 2-3 seconds while a report generates."""
+    return _reports().progress(uid, report_id)
+
+
+@router.get("/api/reports/{report_id}/progress/stream")
+@_errors
+def report_progress_stream(report_id: str, uid: str = Depends(store.current_uid)):
+    """The same progress as SSE (`event: progress`), for clients that prefer a
+    stream to polling. Ends with `event: done` when the report is finished."""
+    reports = _reports()
+    reports.progress(uid, report_id)          # ownership check before streaming
+
+    def gen():
+        last, waited = None, 0.0
+        while waited < reports.REPORT_BUDGET_S * 3:
+            try:
+                p = reports.progress(uid, report_id)
+            except AiError as e:
+                yield _sse("error", {"detail": e.detail, "code": e.code})
+                return
+            if p != last:
+                yield _sse("progress", p)
+                last = p
+            if p["status"] in ("ready", "failed"):
+                yield _sse("done", p)
+                return
+            time.sleep(REPORT_POLL_S)
+            waited += REPORT_POLL_S
+        yield _sse("done", reports.progress(uid, report_id))
+
+    return StreamingResponse(gen(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache",
+                                      "X-Accel-Buffering": "no"})
 
 
 @router.post("/api/reports/{report_id}/resume")

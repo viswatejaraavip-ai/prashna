@@ -54,6 +54,24 @@ object AppEvents {
     val balance = MutableStateFlow<Long?>(null)
 }
 
+/**
+ * `/api/astro/brand` answers `{"brand": {...}}`. An astrologer who has never
+ * saved one gets empty strings from the current server and `{"brand": null}`
+ * from older ones — both mean "empty form", never an error, so a JSON null is
+ * never handed to the decoder (that threw and broke brand settings entirely).
+ * A bare brand object without the wrapper is accepted too.
+ */
+fun brandFromResponse(el: JsonElement, fallback: Brand = Brand()): Brand {
+    val o = el.obj() ?: return fallback
+    val inner = o["brand"]
+    return when {
+        inner is JsonObject -> inner.decodeAs()
+        inner != null -> fallback              // JSON null: nothing saved yet
+        o.containsKey("display_name") -> o.decodeAs()
+        else -> fallback
+    }
+}
+
 sealed interface StreamEvent {
     data class Delta(val text: String) : StreamEvent
     data class Done(val result: AskResult) : StreamEvent
@@ -113,7 +131,10 @@ class UdhyathApi(
                 d.itemsList().mapNotNull { it.obj()?.str("msg") }.joinToString("; ").ifBlank { null }
             }
         }
-        val kind = when (obj?.str("code")) {
+        // 401 always means "sign in again", whatever `code` the body carries:
+        // the platform tags expired tokens `forbidden`, and treating those as a
+        // plan problem left the user stuck on an error screen.
+        val kind = if (code == 401) ErrorKind.UNAUTHORIZED else when (obj?.str("code")) {
             "insufficient_balance" -> ErrorKind.INSUFFICIENT_BALANCE
             "rate_limited" -> ErrorKind.RATE_LIMITED
             "not_found" -> ErrorKind.NOT_FOUND
@@ -200,6 +221,19 @@ class UdhyathApi(
     suspend fun registerFcm(token: String) { post("/api/me/fcm-token", buildJsonObject { put("token", token) }) }
     suspend fun acceptDisclaimer() { post("/api/me/disclaimer") }
     suspend fun pricing(): Pricing = get("/api/pricing").decodeAs()
+
+    /**
+     * Fire-and-forget touch of the API at launch. It resolves DNS, completes
+     * the TLS handshake into OkHttp's connection pool and wakes a Cloud Run
+     * instance, so the first request the user actually waits for (the OTP
+     * sign-in) does not pay a ~2.5 s container start plus a handshake.
+     * Failures are ignored: this is an optimisation, never a gate.
+     */
+    suspend fun warm() {
+        runCatching {
+            exec(Request.Builder().url(url("/api/healthz")).get().build())
+        }
+    }
 
     suspend fun playVerify(productId: String, purchaseToken: String): JsonObject =
         post("/api/wallet/play/verify", buildJsonObject {
@@ -383,8 +417,8 @@ class UdhyathApi(
     suspend fun updateClientNotes(pid: String, notes: String) {
         patch("/api/astro/clients/$pid", buildJsonObject { put("notes", notes) })
     }
-    suspend fun brand(): Brand = get("/api/astro/brand").let { it.obj()?.get("brand") ?: it }.decodeAs()
-    suspend fun saveBrand(b: Brand) { httpPut("/api/astro/brand", toJson(b)) }
+    suspend fun brand(): Brand = brandFromResponse(get("/api/astro/brand"))
+    suspend fun saveBrand(b: Brand): Brand = brandFromResponse(httpPut("/api/astro/brand", toJson(b)), b)
     suspend fun proBundle(pid: String): JsonObject = get("/api/astro/clients/$pid/pro-bundle").obj() ?: JsonObject(emptyMap())
 
     /** Download a signed URL (PDF / PNG) — no auth header needed but harmless. */

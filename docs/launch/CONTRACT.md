@@ -25,7 +25,7 @@ change it, update this file and say so in your final report.
 | Stage | Model | Job |
 |---|---|---|
 | 1. Plan | Gemini Flash (`GEMINI_MODEL`, default `gemini-3.5-flash-lite`) | Guardrail + intent classification, pick which engine tools to run, JSON plan |
-| 2. Execute | Gemini Flash + engine | Run engine tools (deterministic Python), then Flash condenses raw output into a ≤1,500-token "facts brief" relevant to the question |
+| 2. Execute | Gemini Flash + engine | Run engine tools (deterministic Python), then Flash condenses raw output into a ≤1,500-token "facts brief" relevant to the question. When the engine output is already small (`AI_BRIEF_SKIP_MAX_CHARS`, narrow tools like `current_dasha`) the Flash call is skipped and the JSON goes straight to Opus; the `brief` stage is still traced, with `cost_units: 0` and `detail.skipped` |
 | 3. Reason | Claude Opus 4.5 on the Anthropic API (`claude-opus-4-5`, `CLAUDE_MODEL`) | Only this stage uses Claude: interpret the facts brief and answer in the user's language |
 
 - **Price to the user:** flat **₹10 per answered query** (`QUERY_PRICE_UNITS=1000` paise), for text and voice. Clarifying or refused turns are free (no charge) but are capped per session.
@@ -52,7 +52,7 @@ integer number of **paise** (`*_units`). Timestamps are ISO-8601 UTC strings
 | `payments` | order/purchase id | platform | `uid, provider ("play"\|"razorpay"), amount_units, status, created_at, raw` |
 | `refunds` | auto | platform | `uid, ref, amount_units, reason, status ("requested"\|"approved"\|"rejected"), created_at, decided_by` |
 | `support_tickets` | auto | platform | `uid, category, message, status ("open"\|"resolved"), replies[], created_at` |
-| `reports` | auto | ai | `report_id, uid, profile_id, profile_name, lang, birth, brand{...}\|null, fee_units, status ("generating"\|"ready"\|"failed"), sections_done, sections_total, cost_units, outline, pdf_path, refund_pending, created_at, completed_at, error`; chapters in `reports/{id}/sections/{NN}` `{idx, title, content, created_at}` |
+| `reports` | auto | ai | `report_id, uid, profile_id, profile_name, lang, birth, brand{...}\|null, fee_units, status ("generating"\|"ready"\|"failed"), sections_done, sections_total, cost_units, outline, pdf_path, refund_pending, created_at, completed_at, error`, plus progress: `chapter_titles[] (localized), chapters_started_at, concurrency, chapter_seconds (measured mean), words_target, eta_seconds`; chapters in `reports/{id}/sections/{NN}` `{idx, title, content, created_at}` |
 | `astro_brand` | uid | features | astrologer white-label: `display_name, phone, logo_url, footer` |
 | `daily_content` | `YYYY-MM-DD_{lang}_{moon_rasi}` | features | cached daily forecast text |
 | `config_flags` | `global` | admin (writes), everyone (reads, cached 60s) | `voice_cloud_enabled, opus_enabled, query_price_units, cost_ceiling_units, maintenance_message` |
@@ -79,7 +79,15 @@ integer number of **paise** (`*_units`). Timestamps are ISO-8601 UTC strings
 ```
 
 Stage names used: `stt, plan, tools, brief, reason, tts, memory` (queries),
-`outline, reason` (report_chapter), `teaser`. Optional extra trace fields
+`outline, reason` (report_chapter), `teaser`.
+
+`latency_ms` is **what the user waited** — up to and including the delivered
+answer (the SSE `done` event). The `memory` stage and the Firestore writes run
+after that on a background thread, so they are recorded in `stages` with their
+own `latency_ms` but are not inside the query's `latency_ms`. Sum the stages if
+you want total work done; use `latency_ms` for the latency the dashboard shows.
+
+Optional extra trace fields
 written by the AI workstream: `budget {ceiling, limit, spent{}, reserved{}}`,
 `charge_error` (answer delivered but the wallet charge failed), and for
 `report_chapter`: `report_id, chapter, words_target`.
@@ -111,6 +119,9 @@ Errors: `{"detail": "...", "code": "insufficient_balance|rate_limited|not_found|
 - `POST /api/sessions/{sid}/ask/stream` → same, as SSE: `event: delta` `{text}` … `event: done` `{charged_units, balance_units, status, trace_id}`
 - `POST /api/sessions/{sid}/voice` multipart `audio` (16 kHz mono OGG_OPUS or LINEAR16) + `tts` bool → `{transcript, reply, audio_b64?, charged_units, balance_units, status, trace_id}` (cloud speech path)
 - `POST /api/reports` `{profile_id, brand?: bool}`; `GET /api/reports`; `GET /api/reports/{id}`; `POST /api/reports/{id}/resume`; `GET /api/reports/{id}/pdf` → signed GCS URL; `POST /api/reports/teaser` `{profile_id}`
+- `GET /api/reports/pricing` → `{report_price_units (for the caller's language), report_price_units_by_lang{}, report_chapters, report_words, report_eta_seconds, lang}`
+- `GET /api/reports/{id}/progress` → `{status, percent, sections_done, sections_total, current_chapter{idx,title}, chapters:[{idx,title,done}], eta_seconds, elapsed_seconds, error, refund_pending, fee_units}`; the same payload as SSE on `GET /api/reports/{id}/progress/stream` (`event: progress` … `event: done`). `GET /api/reports` and `GET /api/reports/{id}` also carry `percent`/`eta_seconds`.
+- **Report price:** 18 chapters × ~1,000 words, delivered in < 5 minutes (chapters generated concurrently). The price is the measured provider cost × 1.5 (`REPORT_MARGIN`), per language, rounded up to ₹50: Hindi ₹250, Telugu/Tamil/Kannada ₹400, Malayalam ₹450, English ₹150 at the modelled tokens-per-word. `REPORT_FEE_UNITS`/`REPORT_PRICE_UNITS` (flat) or `REPORT_FEE_UNITS_<LANG>` override it; `backend/scripts/report_bench.py` measures the real rate. `GET /api/pricing` (platform) should serve `reports.report_fee_units(lang)` so the advertised price matches the charge.
 
 ### Personal & astrologer features — `routes_features.py`
 - Profiles: `GET/POST /api/profiles`, `GET/PATCH/DELETE /api/profiles/{pid}`
@@ -123,7 +134,9 @@ Errors: `{"detail": "...", "code": "insufficient_balance|rate_limited|not_found|
 - Birth-time helper: `POST /api/profiles/{pid}/rectify` `{events:[{date, type}]}` → candidate times with scores (engine heuristics, no LLM)
 - Share card: `POST /api/share-card` `{profile_id, kind: "chart|daily"}` → signed PNG URL
 - Places: `GET /api/places?q=` (reuse the existing dataset)
-- Astrologer: `GET/POST /api/astro/clients` (alias of profiles with `relation=client`), `PATCH /api/astro/clients/{pid}` (notes), `GET/PUT /api/astro/brand`, `GET /api/astro/clients/{pid}/pro-bundle` → all vargas + KP + Shadbala + Ashtakavarga + dashas in one call (Pro only)
+- Astrologer: `GET/POST /api/astro/clients` (alias of profiles with `relation=client`), `GET/PATCH/DELETE /api/astro/clients/{pid}` (PATCH takes notes/name/gender/birth; `relation` is ignored so a client stays a client), `GET/PUT /api/astro/brand`, `GET /api/astro/clients/{pid}/pro-bundle` → all vargas + KP + Shadbala + Ashtakavarga + dashas in one call (Pro only)
+  - `GET /api/astro/brand` always returns `{"brand": {display_name, phone, logo_url, footer}}`; an astrologer who has never saved one gets the four keys as empty strings, **never `null`**, so the settings form always has a shape to bind to. (`brand.get_brand()` still returns `None` internally, which is what "no brand" means for report/PDF branding.)
+  - `PUT /api/astro/brand` takes the same four keys, all optional; it replaces the document, so a key left out is cleared. Validation failures come back as `{"code": "invalid"}` with a **localized** `detail` that never names a raw field like `display_name`.
 - Cron (OIDC-authenticated from Cloud Scheduler, `/internal/...`, not `/api`): `POST /internal/cron/daily-push`, `POST /internal/cron/transit-alerts`, `POST /internal/cron/purge-deleted`
 
 ### Operator — `routes_admin.py` (admin only: `ADMIN_EMAILS` via Google sign-in → admin JWT)

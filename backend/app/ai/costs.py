@@ -37,6 +37,14 @@ PRICES: Dict[str, Dict[str, float]] = {
                         "cache_read": 0.50, "cache_write": 6.25},
     "claude-opus-4-5-20251101": {"in": 5.00, "out": 25.00,
                                  "cache_read": 0.50, "cache_write": 6.25},
+    # Opus 5 lists at the SAME per-token price as 4.5. It is not automatically
+    # the same cost per query: adaptive thinking is on by default there and
+    # thinking tokens bill as output, so a query's output token count (and so
+    # its cost) can be higher at identical answer length. Measure with
+    # scripts/agent_bench.py before switching CLAUDE_MODEL — see
+    # docs/launch/AGENT_BENCH.md "Opus 4.5 vs Opus 5".
+    "claude-opus-5": {"in": 5.00, "out": 25.00,
+                      "cache_read": 0.50, "cache_write": 6.25},
     # --- Gemini (text input; <=200k context) ---
     # Gemini API paid tier, checked 2026-09-19 (ai.google.dev/gemini-api/docs/pricing).
     # 2.5 Flash / Flash-Lite are closed to new accounts; 3.5 Flash-Lite is the
@@ -173,4 +181,4 @@ TTS_CHARS_PER_OUT_TOKEN = float(os.environ.get("TTS_CHARS_PER_OUT_TOKEN", "3.0")
 # Rough output tokens per written word, per language, used only to tell Opus a
 # target length that lands inside max_tokens (the probe script measures the
 # real ratio — update these from its output).
-TOKENS_PER_WORD = {"hi": 3.0, "te": 5.5, "ta": 5.5, "kn": 5.5, "ml": 6.5, "en": 1.4}
+TOKENS_PER_WORD = {"hi": 3.7, "te": 6.5, "ta": 6.9, "kn": 13.7, "ml": 5.2, "en": 1.8}

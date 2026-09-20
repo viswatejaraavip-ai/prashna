@@ -10,7 +10,7 @@ The lead wires these into main.py::
 
 from typing import Dict, Optional
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Header, Query, Request
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
@@ -72,9 +72,11 @@ def firebase_config():
 # ---------------- Me ----------------
 
 @router.get("/api/me")
-def get_me(uid: str = Depends(store.current_uid)):
+def get_me(request: Request, uid: str = Depends(store.current_uid)):
     user = _user_or_404(uid)
-    return {"user": platform_auth.public_user(user), "pricing": platform_wallet.pricing()}
+    # The app reads its prices from here, and the report price is per language.
+    return {"user": platform_auth.public_user(user),
+            "pricing": platform_wallet.pricing(store.lang_of(request, user))}
 
 
 class NotifPrefs(BaseModel):
@@ -162,8 +164,15 @@ def delete_me(uid: str = Depends(store.current_uid)):
 # ---------------- Pricing & wallet ----------------
 
 @router.get("/api/pricing")
-def pricing():
-    return platform_wallet.pricing()
+def pricing(request: Request, authorization: Optional[str] = Header(None)):
+    # The report price differs by language (Indic scripts cost more tokens),
+    # so quote the caller's language.
+    user = None
+    try:
+        user = store.get_user(store.current_uid(authorization))
+    except Exception:
+        pass
+    return platform_wallet.pricing(store.lang_of(request, user))
 
 
 @router.get("/api/wallet/ledger")

@@ -95,6 +95,7 @@ def probe_queries(langs, voice: bool) -> None:
         t0 = time.time()
         r = pipeline.run_query("probe", session, dry_run=True, prechecked=FLAGS,
                                profile=PROFILE, memory_facts=[], **kw)
+        r.wait()      # the memory stage and the trace are filed off-thread
         print_trace("%s %s (%.1fs)" % (lang, "voice" if voice else "text", time.time() - t0), r)
         if voice:
             print("  transcript: %s" % r.transcript)

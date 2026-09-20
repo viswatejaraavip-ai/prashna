@@ -79,9 +79,15 @@ def kaal_sarpa(positions: Dict[str, float], ascendant: float) -> Dict:
 
 
 def _saturn_sign(dt: datetime, ayanamsa: str) -> int:
-    jd = ephemeris.julian_day(dt)
-    lon = ephemeris.planet_positions(jd, ayanamsa)["Saturn"]["longitude"]
+    lon = ephemeris.planet_longitude(ephemeris.julian_day(dt), "Saturn", ayanamsa)
     return int((lon % 360) // 30)
+
+
+# A 20-day scan step bisected this many times resolves an ingress to under a
+# tenth of a second, far finer than the dates this ends up printing. (It used
+# to be 40, which cost 16 extra ephemeris calls per ingress for no visible
+# difference.)
+_BISECT_STEPS = 24
 
 
 def _saturn_ingresses(start: datetime, years: int, ayanamsa: str) -> List[Dict]:
@@ -96,7 +102,7 @@ def _saturn_ingresses(start: datetime, years: int, ayanamsa: str) -> List[Dict]:
         s2 = _saturn_sign(t2, ayanamsa)
         if s2 != sign:
             lo, hi = t, t2
-            for _ in range(40):
+            for _ in range(_BISECT_STEPS):
                 mid = lo + (hi - lo) / 2
                 if _saturn_sign(mid, ayanamsa) == sign:
                     lo = mid

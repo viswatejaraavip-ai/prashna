@@ -83,6 +83,10 @@
     <string name="role_personal_desc">കുടുംബത്തിനായി ദിവസേനയുള്ള മാർഗ്ഗനിർദ്ദേശം, ജാതകം, പൊരുത്തം, മറുപടികൾ.</string>
     <string name="role_astrologer">ഞാൻ ഒരു ജ്യോതിഷിയാണ്</string>
     <string name="role_astrologer_desc">ക്ലയന്റ് രേഖകൾ, പ്രൊഫഷണൽ ചാർട്ടുകൾ, താങ്കളുടെ സ്വന്തം ബ്രാൻഡിലുള്ള റിപ്പോർട്ടുകൾ.</string>
+    <string name="role_change">അക്കൗണ്ട് തരം മാറ്റുക</string>
+    <string name="role_change_cta">മാറ്റുക</string>
+    <string name="role_change_to_astrologer">ജ്യോതിഷി അക്കൗണ്ടിലേക്ക് മാറണോ? ക്ലയന്റ് രേഖകൾ, പ്രൊഫഷണൽ ചാർട്ടുകൾ, നിങ്ങളുടെ ബ്രാൻഡുള്ള PDF-കൾ ലഭിക്കും. കുടുംബ പ്രൊഫൈലുകൾ അതുപോലെ തുടരും.</string>
+    <string name="role_change_to_personal">വീണ്ടും വ്യക്തിഗത അക്കൗണ്ടിലേക്ക് മാറണോ? ക്ലയന്റുകൾ സൂക്ഷിക്കപ്പെടും, പക്ഷേ ജ്യോതിഷി ഉപകരണങ്ങൾ മറയ്ക്കപ്പെടും.</string>
 
     <!-- Disclaimer & legal -->
     <string name="disclaimer_title">നിരാകരണം</string>
@@ -373,7 +377,7 @@
     <!-- Report -->
     <string name="report_title">ജീവിത റിപ്പോർട്ട്</string>
     <string name="report_headline">താങ്കളുടെ സമ്പൂർണ ജീവിത റിപ്പോർട്ട്</string>
-    <string name="report_pitch">18 അധ്യായങ്ങളിലായി ഏകദേശം ഒരു ലക്ഷം വാക്കുകൾ: ബാല്യം, വിദ്യാഭ്യാസം, ജോലി, വിവാഹം, കുട്ടികൾ, ആരോഗ്യം, സമ്പത്ത്, വരും ദശകങ്ങൾ.</string>
+    <string name="report_pitch">നിങ്ങളുടെ ജീവിതത്തെക്കുറിച്ച് 18 അധ്യായങ്ങൾ: ബാല്യം, വിദ്യാഭ്യാസം, ജോലി, വിവാഹം, മക്കൾ, ആരോഗ്യം, സമ്പത്ത്, വരാനിരിക്കുന്ന ദശകങ്ങൾ. ഏതാനും മിനിറ്റുകൾക്കുള്ളിൽ തയ്യാർ.</string>
     <string name="report_for">റിപ്പോർട്ട് ആർക്കുവേണ്ടി</string>
     <string name="report_teaser_title">സൗജന്യ മാതൃകാ അധ്യായം</string>
     <string name="report_teaser_cta">ഒരു അധ്യായം സൗജന്യമായി വായിക്കുക</string>

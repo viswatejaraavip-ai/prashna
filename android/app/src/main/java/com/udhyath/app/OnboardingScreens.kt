@@ -198,7 +198,10 @@ class AuthVm(private val g: AppGraph) : ViewModel() {
         viewModelScope.launch {
             try {
                 val fbUser = auth.signInWithCredential(credential).await().user ?: error("no user")
-                val idToken = fbUser.getIdToken(true).await().token ?: error("no token")
+                // getIdToken(false): signInWithCredential has just minted a
+                // fresh token, so forcing a refresh only added a round trip to
+                // Google before we could even call our own backend.
+                val idToken = fbUser.getIdToken(false).await().token ?: error("no token")
                 val res = g.api.authFirebase(idToken, g.settings.deviceId(), g.langCode ?: "hi")
                 g.account.onSignedIn(res)
                 signedIn.value = true
@@ -465,7 +468,8 @@ fun ProfileEditScreen(
     val title = when {
         onboarding -> stringResource(R.string.birth_title_onboarding)
         pid != null -> stringResource(R.string.profile_edit_title)
-        asClient -> stringResource(R.string.client_add_title)
+        // The astrologer's FAB opens this with relation=client, not asClient.
+        asClient || relation == "client" -> stringResource(R.string.client_add_title)
         else -> stringResource(R.string.profile_add_title)
     }
 

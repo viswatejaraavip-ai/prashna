@@ -83,6 +83,10 @@
     <string name="role_personal_desc">ನಿಮ್ಮ ಕುಟುಂಬಕ್ಕಾಗಿ ದಿನದ ಮಾರ್ಗದರ್ಶನ, ಜಾತಕಗಳು, ಹೊಂದಾಣಿಕೆ ಮತ್ತು ಉತ್ತರಗಳು.</string>
     <string name="role_astrologer">ನಾನು ಜ್ಯೋತಿಷಿ</string>
     <string name="role_astrologer_desc">ಗ್ರಾಹಕರ ದಾಖಲೆಗಳು, ವೃತ್ತಿಪರ ಜಾತಕಗಳು ಮತ್ತು ನಿಮ್ಮದೇ ಬ್ರ್ಯಾಂಡ್‌ನ ವರದಿಗಳು.</string>
+    <string name="role_change">ಖಾತೆಯ ಬಗೆ ಬದಲಿಸಿ</string>
+    <string name="role_change_cta">ಬದಲಿಸಿ</string>
+    <string name="role_change_to_astrologer">ಜ್ಯೋತಿಷಿ ಖಾತೆಗೆ ಬದಲಾಗಬೇಕೆ? ಕ್ಲೈಂಟ್ ದಾಖಲೆಗಳು, ವೃತ್ತಿಪರ ಜಾತಕಗಳು ಮತ್ತು ನಿಮ್ಮ ಬ್ರ್ಯಾಂಡ್ ಇರುವ PDF ಸಿಗುತ್ತವೆ. ನಿಮ್ಮ ಕುಟುಂಬದ ಪ್ರೊಫೈಲ್‌ಗಳು ಹಾಗೆಯೇ ಇರುತ್ತವೆ.</string>
+    <string name="role_change_to_personal">ಮತ್ತೆ ವೈಯಕ್ತಿಕ ಖಾತೆಗೆ ಬದಲಾಗಬೇಕೆ? ನಿಮ್ಮ ಕ್ಲೈಂಟ್‌ಗಳು ಉಳಿಯುತ್ತಾರೆ, ಆದರೆ ಜ್ಯೋತಿಷಿ ಸಾಧನಗಳು ಮರೆಯಾಗುತ್ತವೆ.</string>
 
     <!-- Disclaimer & legal -->
     <string name="disclaimer_title">ಹಕ್ಕು ನಿರಾಕರಣೆ</string>
@@ -373,7 +377,7 @@
     <!-- Report -->
     <string name="report_title">ಜೀವನ ವರದಿ</string>
     <string name="report_headline">ನಿಮ್ಮ ಸಂಪೂರ್ಣ ಜೀವನ ವರದಿ</string>
-    <string name="report_pitch">18 ಅಧ್ಯಾಯಗಳಲ್ಲಿ ಸುಮಾರು ಒಂದು ಲಕ್ಷ ಪದಗಳು: ಬಾಲ್ಯ, ವಿದ್ಯಾಭ್ಯಾಸ, ಉದ್ಯೋಗ, ವಿವಾಹ, ಮಕ್ಕಳು, ಆರೋಗ್ಯ, ಸಂಪತ್ತು ಮತ್ತು ಮುಂಬರುವ ದಶಕಗಳು.</string>
+    <string name="report_pitch">ನಿಮ್ಮ ಜೀವನದ ಬಗ್ಗೆ 18 ಅಧ್ಯಾಯಗಳು: ಬಾಲ್ಯ, ವಿದ್ಯಾಭ್ಯಾಸ, ವೃತ್ತಿ, ಮದುವೆ, ಮಕ್ಕಳು, ಆರೋಗ್ಯ, ಸಂಪತ್ತು ಮತ್ತು ಮುಂಬರುವ ದಶಕಗಳು. ಕೆಲವೇ ನಿಮಿಷಗಳಲ್ಲಿ ಸಿದ್ಧ.</string>
     <string name="report_for">ಯಾರಿಗಾಗಿ ವರದಿ</string>
     <string name="report_teaser_title">ಉಚಿತ ಮಾದರಿ ಅಧ್ಯಾಯ</string>
     <string name="report_teaser_cta">ಒಂದು ಅಧ್ಯಾಯ ಉಚಿತವಾಗಿ ಓದಿ</string>

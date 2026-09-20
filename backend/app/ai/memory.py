@@ -12,9 +12,9 @@ more than budget.memory_reserve().
 
 import json
 import logging
-from typing import Dict, List, Tuple
+from typing import List, Tuple
 
-from . import budget, costs, llm
+from . import budget, clock, costs, llm
 
 log = logging.getLogger("udhyath.ai.memory")
 
@@ -24,7 +24,12 @@ _QUESTION_CHARS = 1200
 
 SYSTEM = """You maintain memory for a Vedic astrology consultation app.
 Given the previous session summary, the client's stored facts, and the
-latest question and answer, return JSON:
+latest question and answer, return JSON.
+
+`now` in the payload is the real current moment in India — the only date you
+may treat as today. Record times ABSOLUTELY ("asked in September 2026",
+"job change due 2027-03"), never relatively ("last month", "next year"):
+this text is read back weeks later, when the relative words would be lies.
 - "summary": English, <= 180 words: what the client asked in this session
   and the key conclusions and date windows given, so the astrologer can
   answer follow-ups without the transcript. Newest first; drop stale detail.
@@ -46,7 +51,8 @@ def update(*, summary: str, facts: List[str], question: str, answer: str,
            lang: str) -> Tuple[str, List[str], "llm.Stage"]:
     """Returns (new_summary, new_facts, Stage). On failure keeps the old
     values plus a naive append so follow-ups still have some context."""
-    payload = {"previous_summary": summary[:1500], "stored_facts": facts[:MAX_FACTS],
+    payload = {"now": clock.stamp(), "previous_summary": summary[:1500],
+               "stored_facts": facts[:MAX_FACTS],
                "language_of_conversation": lang,
                "question": question[:_QUESTION_CHARS], "answer": answer[:_ANSWER_CHARS]}
     user = json.dumps(payload, ensure_ascii=False)

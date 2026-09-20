@@ -82,6 +82,10 @@
     <string name="role_personal_desc">आपके परिवार के लिए रोज़ का मार्गदर्शन, कुंडली, गुण मिलान और प्रश्नों के उत्तर।</string>
     <string name="role_astrologer">मैं ज्योतिषी हूँ</string>
     <string name="role_astrologer_desc">ग्राहकों का रिकॉर्ड, पेशेवर कुंडलियाँ और आपके अपने नाम वाली रिपोर्ट।</string>
+    <string name="role_change">खाते का प्रकार बदलें</string>
+    <string name="role_change_cta">बदलें</string>
+    <string name="role_change_to_astrologer">ज्योतिषी खाते पर जाएँ? आपको क्लाइंट रिकॉर्ड, पेशेवर कुंडलियाँ और अपने ब्रांड वाली PDF मिलेंगी। आपके परिवार की प्रोफ़ाइल वैसी ही रहेंगी।</string>
+    <string name="role_change_to_personal">वापस निजी खाते पर जाएँ? आपके क्लाइंट सुरक्षित रहेंगे, पर ज्योतिषी उपकरण छिप जाएँगे।</string>
 
     <!-- Disclaimer & legal -->
     <string name="disclaimer_title">अस्वीकरण</string>
@@ -372,7 +376,7 @@
     <!-- Report -->
     <string name="report_title">जीवन रिपोर्ट</string>
     <string name="report_headline">आपकी संपूर्ण जीवन रिपोर्ट</string>
-    <string name="report_pitch">18 अध्यायों में लगभग एक लाख शब्द: बचपन, शिक्षा, करियर, विवाह, संतान, स्वास्थ्य, धन और आने वाले दशक।</string>
+    <string name="report_pitch">आपके जीवन पर 18 अध्याय: बचपन, शिक्षा, करियर, विवाह, संतान, स्वास्थ्य, धन और आने वाले दशक। कुछ ही मिनटों में तैयार।</string>
     <string name="report_for">रिपोर्ट किसके लिए</string>
     <string name="report_teaser_title">मुफ़्त नमूना अध्याय</string>
     <string name="report_teaser_cta">एक अध्याय मुफ़्त पढ़ें</string>

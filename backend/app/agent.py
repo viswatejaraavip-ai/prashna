@@ -10,8 +10,6 @@ import os
 import sys
 from typing import Dict, List, Optional, Tuple
 
-import anthropic
-
 from . import config
 
 # Make the engine importable both from the repo layout and the Docker image.
@@ -31,9 +29,15 @@ def client():
     Bedrock: AnthropicBedrockMantle resolves AWS credentials the standard way
     (env vars, shared profile, or the task/instance IAM role on AWS) — no
     Anthropic API key involved. First-party: uses ANTHROPIC_API_KEY.
+
+    ``anthropic`` is imported here, not at module import: it costs ~300 ms to
+    import and this module is pulled in by every process just for the engine
+    path and the tool schemas, so importing it eagerly put 300 ms on every
+    Cloud Run cold start even for requests that never call a model.
     """
     global _client
     if _client is None:
+        import anthropic
         if config.INFERENCE_PROVIDER == "bedrock":
             _client = anthropic.AnthropicBedrockMantle(aws_region=config.AWS_REGION)
         else:

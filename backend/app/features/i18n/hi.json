@@ -320,5 +320,30 @@
     "parent_loss": "माता या पिता का निधन",
     "accident": "दुर्घटना",
     "other": "अन्य प्रसंग"
+  },
+  "errors": {
+    "astrologer_only": "यह केवल ज्योतिषी खातों के लिए है।",
+    "pro_needed": "इसके लिए सक्रिय प्रो प्लान चाहिए।",
+    "pro_needed_chart": "{chart} एक पेशेवर कुंडली है; इसके लिए सक्रिय प्रो प्लान चाहिए।",
+    "client_not_found": "क्लाइंट नहीं मिला।",
+    "brand_name_required": "अपनी PDF पर छपने वाला नाम भरें।",
+    "brand_too_long": "{field} अधिकतम {limit} अक्षरों का हो सकता है।",
+    "brand_phone_invalid": "फ़ोन नंबर में केवल अंक, स्पेस, +, ( ) हो सकते हैं।",
+    "brand_logo_https": "लोगो लिंक https:// से शुरू होना चाहिए।"
+  },
+  "brand_fields": {
+    "display_name": "दिखने वाला नाम",
+    "phone": "फ़ोन",
+    "logo_url": "लोगो लिंक",
+    "footer": "नीचे का संदेश"
+  },
+  "chart_kinds": {
+    "kp": "केपी (कृष्णमूर्ति पद्धति)",
+    "shadbala": "षड्बल",
+    "ashtakavarga": "अष्टकवर्ग",
+    "nadi": "नाड़ी",
+    "varshphal": "वर्षफल (वार्षिक कुंडली)",
+    "lalkitab": "लाल किताब",
+    "all_vargas": "सभी 16 वर्ग कुंडलियाँ"
   }
 }

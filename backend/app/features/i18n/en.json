@@ -321,5 +321,30 @@
     "parent_loss": "Loss of a parent",
     "accident": "Accident",
     "other": "Other event"
+  },
+  "errors": {
+    "astrologer_only": "This is only for astrologer accounts.",
+    "pro_needed": "This needs an active Pro plan.",
+    "pro_needed_chart": "{chart} is an astrologer-grade chart and needs an active Pro plan.",
+    "client_not_found": "Client not found.",
+    "brand_name_required": "Enter the name that should appear on your PDFs.",
+    "brand_too_long": "{field} must be at most {limit} characters.",
+    "brand_phone_invalid": "The phone number may contain only digits, spaces, +, ( and ).",
+    "brand_logo_https": "The logo link must start with https://"
+  },
+  "brand_fields": {
+    "display_name": "Display name",
+    "phone": "Phone",
+    "logo_url": "Logo link",
+    "footer": "Footer text"
+  },
+  "chart_kinds": {
+    "kp": "KP (Krishnamurti paddhati)",
+    "shadbala": "Shadbala",
+    "ashtakavarga": "Ashtakavarga",
+    "nadi": "Nadi",
+    "varshphal": "Varshphal (annual chart)",
+    "lalkitab": "Lal Kitab",
+    "all_vargas": "All 16 divisional charts"
   }
 }

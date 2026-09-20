@@ -14,7 +14,7 @@ estimated) before the call, the ceiling cannot be exceeded by the model.
 
 import math
 import os
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 from . import costs, llm
 
@@ -25,6 +25,37 @@ VOICE_MAX_OUTPUT_TOKENS = int(os.environ.get("VOICE_MAX_OUTPUT_TOKENS", "450"))
 # Below these we shrink context instead of answering in a stub.
 TEXT_MIN_OUTPUT_TOKENS = int(os.environ.get("TEXT_MIN_OUTPUT_TOKENS", "500"))
 VOICE_MIN_OUTPUT_TOKENS = int(os.environ.get("VOICE_MIN_OUTPUT_TOKENS", "220"))
+
+# A reasoning model (Opus 5 and later default to adaptive thinking) spends
+# thinking tokens *inside* max_tokens, and they are billed at the output
+# price. max_tokens must therefore cover reasoning AND the reply, or the
+# answer gets truncated by its own thinking. This multiplier widens both the
+# cap we allow and the minimum we insist on before calling the model at all;
+# it is 1.0 for a non-thinking model such as Opus 4.5, so the money maths for
+# today's default is unchanged.
+THINKING_HEADROOM = float(os.environ.get("CLAUDE_THINKING_HEADROOM", "1.8"))
+
+
+def _headroom(model: Optional[str] = None) -> float:
+    return THINKING_HEADROOM if llm.thinks_by_default(model) else 1.0
+
+
+def mode_max_tokens(mode: str, model: Optional[str] = None) -> int:
+    base = VOICE_MAX_OUTPUT_TOKENS if mode == "voice" else TEXT_MAX_OUTPUT_TOKENS
+    return int(base * _headroom(model))
+
+
+def mode_min_tokens(mode: str, model: Optional[str] = None) -> int:
+    base = VOICE_MIN_OUTPUT_TOKENS if mode == "voice" else TEXT_MIN_OUTPUT_TOKENS
+    return int(base * _headroom(model))
+
+
+def answer_tokens(max_tokens: int, model: Optional[str] = None) -> int:
+    """How much of a `max_tokens` cap is left for the *visible* answer once a
+    thinking model has spent some of it reasoning. Used to set the length
+    target we give the model, which must not grow just because the cap did."""
+    return max(1, int(max_tokens / _headroom(model)))
+
 
 # Worst case of the post-answer memory update (Flash): input is capped by
 # memory.py (summary + facts + question + answer, truncated) and output by

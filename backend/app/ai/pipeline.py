@@ -17,15 +17,17 @@ Money rules (CONTRACT.md):
 import base64
 import logging
 import os
+import threading
 import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+
 from typing import Callable, Dict, List, Optional, Tuple
 
 from .. import guard, store
 from . import budget as budget_mod
-from . import executor, llm, memory, planner, reasoner, repo, speech
+from . import clock, executor, llm, memory, planner, reasoner, repo, speech
 
 log = logging.getLogger("udhyath.ai.pipeline")
 
@@ -34,6 +36,12 @@ AI_RATE_LIMIT = int(os.environ.get("AI_RATE_LIMIT_PER_5MIN", "10"))
 # are replaced by a canned nudge; after HARD no model is called at all.
 FREE_TURNS_SOFT = int(os.environ.get("FREE_TURNS_SOFT", "4"))
 FREE_TURNS_HARD = int(os.environ.get("FREE_TURNS_HARD", "12"))
+# The memory update, the message/session writes, the trace and the rollups all
+# happen AFTER the user has their answer. Running them on a background thread
+# takes the whole tail (a Flash call plus ~5 Firestore writes) out of the
+# user's wall clock. Set AI_ASYNC_TAIL=0 to go back to inline bookkeeping.
+ASYNC_TAIL = os.environ.get("AI_ASYNC_TAIL", "1") != "0"
+TAIL_TIMEOUT_S = float(os.environ.get("AI_TAIL_TIMEOUT_S", "60"))
 
 
 class AiError(Exception):
@@ -54,6 +62,19 @@ class Result:
     transcript: Optional[str] = None
     audio_b64: Optional[str] = None
     trace: Dict = field(default_factory=dict)
+    tail: Optional[threading.Thread] = None
+    # Filled by the background tail: the rolled-up session summary and the
+    # per-profile memory this turn produced (what the next turn will read).
+    summary: str = ""
+    facts: List[str] = field(default_factory=list)
+
+    def wait(self, timeout: Optional[float] = None) -> "Result":
+        """Block until the background bookkeeping (memory, trace, rollups)
+        has finished, so `trace` is final. Tests and the benchmark use it;
+        the request path never needs to."""
+        if self.tail is not None:
+            self.tail.join(timeout if timeout is not None else TAIL_TIMEOUT_S)
+        return self
 
 
 def flags() -> Dict:
@@ -168,15 +189,11 @@ def run_query(uid: str, session: Dict, text: str = "", *,
         if injection:
             log.warning("possible injection uid=%s: %.120s", uid, question)
 
-        # ---- context ----
+        # ---- context (three independent Firestore reads, run together) ----
         pid = session.get("profile_id", "")
-        if profile is None:
-            profile = repo.get_profile(uid, pid) if not dry_run else None
+        profile, facts, others = _context(uid, pid, dry_run, profile, memory_facts)
         if not profile:
             raise AiError(404, "not_found", "Profile not found for this session")
-        facts = (memory_facts if memory_facts is not None
-                 else ([] if dry_run else repo.get_memory(uid, pid)))
-        others = [] if dry_run else repo.list_profiles(uid)
         summary = session.get("summary", "") or ""
 
         # ---- 1. plan ----
@@ -212,23 +229,33 @@ def run_query(uid: str, session: Dict, text: str = "", *,
         b.reserve("memory", budget_mod.memory_reserve())
         tts_tier = speech.tts_tier_for(lang) if want_tts else None
         brief_out = executor.VOICE_BRIEF_TOKENS if mode == "voice" else executor.TEXT_BRIEF_TOKENS
-        reason_reserve = _reason_floor(question, summary, facts, brief_out, mode, tts_tier)
+        # When the engine output is already small, Opus reads it directly and
+        # the Flash brief is skipped: the reason floor must then be sized on
+        # the real JSON rather than on a full-size brief.
+        skip_brief = executor.skips_brief(results)
+        facts_tokens = (executor.raw_tokens(results) if skip_brief else brief_out)
+        reason_reserve = _reason_floor(question, summary, facts, facts_tokens, mode, tts_tier)
         if b.remaining() < reason_reserve:   # misconfigured ceiling: stop before spending more
             st.update(status="error", reply=guard.error_message(lang),
                       error="budget: ceiling too low for a minimum answer")
             return _finish(uid, session, question, st, stages, b, t0, trace_id,
                            lang, mode, dry_run, plan, on_done)
-        max_in =budget_mod.brief_input_cap_tokens(b.remaining(), brief_out, reason_reserve)
-        brief, stage = executor.make_brief(
-            results, focus=plan["focus"], question=question, profile=profile,
-            max_out_tokens=brief_out, max_in_tokens=max_in,
-            today=datetime.now(timezone.utc).strftime("%Y-%m-%d"))
+        if skip_brief:
+            brief, stage = executor.raw_brief(results)
+        else:
+            max_in = budget_mod.brief_input_cap_tokens(b.remaining(), brief_out,
+                                                       reason_reserve)
+            brief, stage = executor.make_brief(
+                results, focus=plan["focus"], question=question, profile=profile,
+                max_out_tokens=brief_out, max_in_tokens=max_in,
+                today=clock.stamp())
         add(stage)
 
         # ---- 3. reason (budget-capped) ----
         fit = reasoner.fit(lang=lang, mode=mode, question=question, brief=brief,
                            summary=summary, memory=facts, profile=profile,
-                           remaining_paise=b.remaining(), tts_tier=tts_tier)
+                           remaining_paise=b.remaining(), tts_tier=tts_tier,
+                           intent=plan.get("intent", ""))
         if not fit["fits"]:
             st.update(status="error", reply=guard.error_message(lang),
                       error="budget: cannot fit a minimum answer (cap %d)" % fit["max_tokens"])
@@ -281,6 +308,35 @@ def run_query(uid: str, session: Dict, text: str = "", *,
                        mode, dry_run, plan, on_done)
 
 
+def _context(uid: str, pid: str, dry_run: bool, profile: Optional[Dict],
+             memory_facts: Optional[List[str]]) -> Tuple[Optional[Dict], List[str], List[Dict]]:
+    """Profile + long-term memory + the other profiles, in parallel.
+
+    These are three independent Firestore round trips in front of the first
+    model call; serially they are the whole pre-plan latency."""
+    if dry_run:
+        return profile, (memory_facts if memory_facts is not None else []), []
+    jobs = {}
+    with ThreadPoolExecutor(max_workers=3, thread_name_prefix="ai-ctx") as pool:
+        if profile is None:
+            jobs["profile"] = pool.submit(repo.get_profile, uid, pid)
+        if memory_facts is None:
+            jobs["facts"] = pool.submit(repo.get_memory, uid, pid)
+        jobs["others"] = pool.submit(repo.list_profiles, uid)
+        out = {}
+        for name, fut in jobs.items():
+            try:
+                out[name] = fut.result()
+            except Exception as exc:
+                if name == "profile":
+                    raise
+                log.warning("context read %s failed: %s", name, exc)
+                out[name] = []
+    return (out.get("profile", profile),
+            out.get("facts", memory_facts) or [],
+            out.get("others") or [])
+
+
 def _reason_floor(question: str, summary: str, facts: List[str], brief_out: int,
                   mode: str, tts_tier: Optional[str]) -> float:
     """Minimum Opus spend we must keep available when sizing the brief
@@ -290,8 +346,7 @@ def _reason_floor(question: str, summary: str, facts: List[str], brief_out: int,
     in_tok = (costs.estimate_tokens(reasoner.SYSTEM_PROMPT + reasoner.VOICE_STYLE)
               + costs.estimate_tokens(question) + costs.estimate_tokens(summary[:1500])
               + costs.estimate_tokens(" ".join(facts[:8])) + brief_out + 120)
-    min_out = (budget_mod.VOICE_MIN_OUTPUT_TOKENS if mode == "voice"
-               else budget_mod.TEXT_MIN_OUTPUT_TOKENS)
+    min_out = budget_mod.mode_min_tokens(mode)
     per_out = costs.per_token_paise(m, "out")
     if tts_tier:
         per_out += costs.TTS_CHARS_PER_OUT_TOKEN * costs.tts_paise_per_char(tts_tier)
@@ -300,7 +355,14 @@ def _reason_floor(question: str, summary: str, facts: List[str], brief_out: int,
 
 def _finish(uid, session, question, st, stages, b, t0, trace_id, lang, mode,
             dry_run, plan, on_done, facts=None, summary=None) -> Result:
-    """Balance -> on_done (SSE 'done') -> memory -> persist -> trace/rollups."""
+    """Balance -> on_done (SSE 'done') -> RETURN, then, off the request
+    thread: memory -> persist -> trace/rollups.
+
+    Nothing after `on_done` is needed to answer the user, so the tail runs in
+    the background. `trace["latency_ms"]` is therefore what the user waited,
+    not what the query took to file away; each tail stage still carries its
+    own `latency_ms` and `cost_units` exactly as CONTRACT.md specifies, and
+    `trace` is the same dict object the tail fills in (Result.wait())."""
     status = st["status"]
     answered = status == "ok"
     if answered and b.over():
@@ -319,35 +381,73 @@ def _finish(uid, session, question, st, stages, b, t0, trace_id, lang, mode,
         except Exception:
             pass
 
-    new_summary, new_facts = summary, facts
-    if answered:
-        b.release("memory")
-        new_summary, new_facts, stage = memory.update(
-            summary=summary or "", facts=facts or [], question=question,
-            answer=st["reply"], lang=lang)
-        stages.append(stage)
-        b.add(stage)
-        if b.over():
-            status = "over_ceiling"
-
-    cost_units = sum(s.to_trace()["cost_units"] for s in stages)
     trace = {
         "trace_id": trace_id, "uid": uid, "session_id": session.get("id", ""),
         "lang": lang, "mode": mode, "kind": "query", "status": status,
         "question_chars": len(question or ""), "created_at": store.now_iso(),
         "latency_ms": int((time.time() - t0) * 1000),
         "stages": [s.to_trace() for s in stages],
-        "cost_units": cost_units, "charged_units": st["charged"],
-        "error": st["error"],
+        "cost_units": sum(s.to_trace()["cost_units"] for s in stages),
+        "charged_units": st["charged"], "error": st["error"],
     }
     if st["charge_error"]:
         trace["charge_error"] = st["charge_error"]
     trace["budget"] = budget_mod.summary(b)
 
-    if not dry_run:
+    result = Result(reply=st["reply"], status=status, trace_id=trace_id,
+                    charged_units=st["charged"], balance_units=balance,
+                    transcript=st["transcript"], audio_b64=st["audio"],
+                    trace=trace, summary=summary or "", facts=list(facts or []))
+
+    def tail() -> None:
+        _tail(uid, session, question, st, stages, b, trace, status, answered,
+              lang, mode, dry_run, facts, summary, result)
+
+    if ASYNC_TAIL:
+        # Also async under dry_run, so the benchmark and the cost probe
+        # measure the real thing; both call Result.wait() for the trace.
+        result.tail = threading.Thread(target=tail, name="ai-tail-" + trace_id[:8],
+                                       daemon=True)
+        result.tail.start()
+    else:
+        tail()
+    return result
+
+
+def _tail(uid, session, question, st, stages, b, trace, status, answered,
+          lang, mode, dry_run, facts, summary, result) -> None:
+    """Post-answer bookkeeping. Runs off the request thread; never raises."""
+    try:
+        new_summary, new_facts = summary, facts
+        if answered:
+            b.release("memory")
+            try:
+                new_summary, new_facts, stage = memory.update(
+                    summary=summary or "", facts=facts or [], question=question,
+                    answer=st["reply"], lang=lang)
+                stages.append(stage)
+                b.add(stage)
+            except Exception as exc:
+                # A broken memory update must not cost us the trace, the
+                # rollups or the session write that follow.
+                log.error("memory update failed: %s", exc)
+                stages.append(llm.Stage(name="memory",
+                                        detail={"error": str(exc)[:200]}))
+            if b.over():
+                status = "over_ceiling"
+            result.summary, result.facts = new_summary or "", list(new_facts or [])
+
+        cost_units = sum(s.to_trace()["cost_units"] for s in stages)
+        # The trace dict is shared with the returned Result: update in place.
+        trace.update(status=status, stages=[s.to_trace() for s in stages],
+                     cost_units=cost_units, budget=budget_mod.summary(b))
+
+        if dry_run:
+            return
         sid = session.get("id", "")
-        _safe(repo.add_message, sid, "user", question or "", 0, trace_id)
-        _safe(repo.add_message, sid, "assistant", st["reply"], st["charged"], trace_id)
+        _safe(repo.add_message, sid, "user", question or "", 0, trace["trace_id"])
+        _safe(repo.add_message, sid, "assistant", st["reply"], st["charged"],
+              trace["trace_id"])
         upd = {"updated_at": store.now_iso()}
         if question and not session.get("title"):
             # Shown in the conversation list: the user's own words, in their
@@ -375,10 +475,8 @@ def _finish(uid, session, question, st, stages, b, t0, trace_id, lang, mode,
         else:
             roll["refusals"] = 1
         _safe(repo.incr_rollup, roll)
-
-    return Result(reply=st["reply"], status=status, trace_id=trace_id,
-                  charged_units=st["charged"], balance_units=balance,
-                  transcript=st["transcript"], audio_b64=st["audio"], trace=trace)
+    except Exception:   # pragma: no cover - defensive; the answer is delivered
+        log.exception("tail failed trace=%s", trace.get("trace_id"))
 
 
 def _safe(fn, *args):

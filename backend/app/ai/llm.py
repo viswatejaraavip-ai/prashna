@@ -29,14 +29,40 @@ ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 # 0 disables thinking on 2.5 Flash; plan/brief/memory are extraction jobs.
 GEMINI_THINKING_BUDGET = int(os.environ.get("GEMINI_THINKING_BUDGET", "0"))
 CLAUDE_MODEL = os.environ.get("CLAUDE_MODEL", "claude-opus-4-5")
-# low|medium|high|"" (off). Sent as output_config.effort; dropped
-# automatically if the API rejects it.
+# low|medium|high (+ xhigh|max on Opus 5) | "" (off). Sent as
+# output_config.effort; dropped automatically if the API rejects it.
 CLAUDE_EFFORT = os.environ.get("CLAUDE_EFFORT", "medium").strip().lower()
+# "" = send nothing and take the model's default; "adaptive" or "disabled" to
+# force one. The default differs by model and it changes the bill:
+#   Opus 4.5 — thinking is OFF unless asked for. That is today's behaviour and
+#              what the ₹5 ceiling was sized against.
+#   Opus 5   — thinking is ADAPTIVE unless disabled, and thinking tokens bill
+#              as OUTPUT ($25/Mtok) and are spent inside max_tokens. So the
+#              same answer can cost more and, at a tight max_tokens, be
+#              truncated by its own reasoning.
+# `budget_tokens` does not exist on either model (400 on Opus 5) — depth is
+# controlled with effort, never a token budget.
+CLAUDE_THINKING = os.environ.get("CLAUDE_THINKING", "").strip().lower()
 CLAUDE_TIMEOUT_S = float(os.environ.get("CLAUDE_TIMEOUT_S", "120"))
+
+# Models whose default is adaptive thinking (output tokens include reasoning).
+THINKS_BY_DEFAULT = ("claude-opus-5", "claude-opus-4-8", "claude-opus-4-7",
+                     "claude-sonnet-5", "claude-fable-5")
+
+
+def thinks_by_default(model: Optional[str] = None) -> bool:
+    m = model or CLAUDE_MODEL
+    if CLAUDE_THINKING == "adaptive":
+        return True
+    if CLAUDE_THINKING == "disabled":
+        return False
+    return m.startswith(THINKS_BY_DEFAULT)
+
 
 _gemini = None
 _claude = None
 _effort_supported: Optional[bool] = None if CLAUDE_EFFORT else False
+_thinking_supported: Optional[bool] = None if CLAUDE_THINKING else False
 _count_tokens_ok: Optional[bool] = None
 
 
@@ -50,8 +76,9 @@ def set_clients(gemini: Any = None, claude: Any = None) -> None:
 
 
 def reset_capabilities() -> None:
-    global _effort_supported, _count_tokens_ok
+    global _effort_supported, _count_tokens_ok, _thinking_supported
     _effort_supported = None if CLAUDE_EFFORT else False
+    _thinking_supported = None if CLAUDE_THINKING else False
     _count_tokens_ok = None
 
 
@@ -74,6 +101,54 @@ def claude():
         _claude = Anthropic(api_key=ANTHROPIC_API_KEY or None,
                             timeout=CLAUDE_TIMEOUT_S, max_retries=1)
     return _claude
+
+
+# ---------------- Cloud Run warm-up ----------------
+# Both SDKs keep a pooled HTTPS connection per client, so the first query on a
+# cold instance otherwise pays SDK import + TLS handshake (~0.5-1.5 s) inside
+# the user's latency. Building the clients at startup moves that off the
+# critical path; the connections are then reused for the instance's life.
+
+WARM_CLIENTS = os.environ.get("AI_WARM_CLIENTS", "1") != "0"
+_warmed = False
+
+
+def warm_clients() -> None:
+    """Build both SDK clients (and prime the Anthropic connection pool).
+
+    Safe to call repeatedly and from any thread; never raises."""
+    global _warmed
+    if _warmed:
+        return
+    _warmed = True
+    t0 = time.time()
+    for name, build in (("gemini", gemini), ("claude", claude)):
+        try:
+            build()
+        except Exception as exc:
+            log.warning("warm-up: %s client unavailable (%s)", name, exc)
+    if ANTHROPIC_API_KEY:
+        # Cheapest authenticated round trip there is: opens the TLS
+        # connection the first real query will reuse. Never billed.
+        try:
+            claude().with_options(timeout=5.0, max_retries=0).messages.count_tokens(
+                model=CLAUDE_MODEL, messages=[{"role": "user", "content": "ping"}])
+        except Exception as exc:
+            log.info("warm-up ping skipped (%s)", exc)
+    log.info("ai clients warm in %d ms", int((time.time() - t0) * 1000))
+
+
+def warm_clients_async() -> None:
+    """Warm the clients in a daemon thread (called at app startup).
+
+    A no-op without provider keys, so importing the app in a test or on a
+    laptop never reaches out to the network."""
+    if not WARM_CLIENTS or _warmed:
+        return
+    if not (ANTHROPIC_API_KEY or GEMINI_API_KEY or GEMINI_USE_VERTEX):
+        return
+    import threading
+    threading.Thread(target=warm_clients, name="ai-warmup", daemon=True).start()
 
 
 @dataclass
@@ -223,31 +298,51 @@ def opus(name: str, system: List[Dict], messages: List[Dict], *, max_tokens: int
     """Streamed Opus call (streaming avoids HTTP timeouts on long outputs and
     feeds SSE). Thinking stays OFF (Opus 4.5 default) for cost.
 
-    Returns (text, stop_reason, Stage)."""
-    global _effort_supported
+    Returns (text, stop_reason, Stage). `Stage.detail["ttft_ms"]` is the time
+    to the first streamed token — the number the user actually feels."""
+    global _effort_supported, _thinking_supported
     model = model or CLAUDE_MODEL
     eff = CLAUDE_EFFORT if effort is None else effort
     kwargs: Dict[str, Any] = dict(model=model, max_tokens=int(max_tokens),
                                   system=system, messages=messages)
     if eff and _effort_supported is not False:
         kwargs["output_config"] = {"effort": eff}
+    if CLAUDE_THINKING and _thinking_supported is not False:
+        # Only sent when explicitly configured; otherwise the model's own
+        # default applies (off on Opus 4.5, adaptive on Opus 5).
+        kwargs["thinking"] = {"type": CLAUDE_THINKING}
     t0 = time.time()
     parts: List[str] = []
-    for attempt in (1, 2):
+    ttft_ms = 0
+    for attempt in (1, 2, 3):
         try:
             parts = []
             with claude().messages.stream(**kwargs) as stream:
                 for delta in stream.text_stream:
+                    if not parts:
+                        ttft_ms = int((time.time() - t0) * 1000)
                     parts.append(delta)
                     if on_delta:
                         on_delta(delta)
                 final = stream.get_final_message()
             if "output_config" in kwargs:
                 _effort_supported = True
+            if "thinking" in kwargs:
+                _thinking_supported = True
             break
         except Exception as exc:
-            if attempt == 1 and "output_config" in kwargs and not parts \
-                    and _is_bad_request(exc):
+            # Drop optional knobs one at a time rather than failing the query:
+            # `thinking` and `output_config.effort` are both model-dependent
+            # (e.g. thinking cannot be disabled above effort "high" on Opus 5).
+            if parts or not _is_bad_request(exc):
+                raise
+            if "thinking" in kwargs:
+                log.warning("Claude API rejected thinking=%s on %s (%s); "
+                            "using the model default", CLAUDE_THINKING, model, exc)
+                _thinking_supported = False
+                kwargs.pop("thinking")
+                continue
+            if "output_config" in kwargs:
                 log.warning("Claude API rejected output_config.effort (%s); "
                             "continuing without it", exc)
                 _effort_supported = False
@@ -262,7 +357,12 @@ def opus(name: str, system: List[Dict], messages: List[Dict], *, max_tokens: int
     stage = Stage(name=name, model=model, in_tok=in_tok, out_tok=out_tok,
                   cache_read_tok=cr, cache_write_tok=cw,
                   cost=costs.llm_cost(model, in_tok, out_tok, cr, cw),
-                  latency_ms=int((time.time() - t0) * 1000))
+                  latency_ms=int((time.time() - t0) * 1000),
+                  detail={"ttft_ms": ttft_ms,
+                          "effort": kwargs.get("output_config", {}).get("effort", ""),
+                          "thinking": kwargs.get("thinking", {}).get(
+                              "type", "default-on" if thinks_by_default(model)
+                              else "default-off")})
     text = "".join(b.text for b in final.content
                    if getattr(b, "type", "") == "text") or "".join(parts)
     return text.strip(), str(getattr(final, "stop_reason", "") or ""), stage

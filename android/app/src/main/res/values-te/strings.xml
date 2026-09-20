@@ -82,6 +82,10 @@
     <string name="role_personal_desc">మీ కుటుంబానికి రోజువారీ మార్గదర్శనం, జాతక చక్రాలు, పొంతన మరియు జవాబులు.</string>
     <string name="role_astrologer">నేను జ్యోతిష్యుడిని</string>
     <string name="role_astrologer_desc">క్లయింట్ల వివరాలు, వృత్తిపరమైన చక్రాలు, మీ సొంత బ్రాండ్‌తో రిపోర్టులు.</string>
+    <string name="role_change">ఖాతా రకం మార్చండి</string>
+    <string name="role_change_cta">మార్చండి</string>
+    <string name="role_change_to_astrologer">జ్యోతిష్య ఖాతాకు మారాలా? క్లయింట్ల వివరాలు, వృత్తిపరమైన చక్రాలు, మీ సొంత బ్రాండ్‌తో PDF లు వస్తాయి. మీ కుటుంబ ప్రొఫైల్‌లు అలాగే ఉంటాయి.</string>
+    <string name="role_change_to_personal">తిరిగి వ్యక్తిగత ఖాతాకు మారాలా? మీ క్లయింట్లు భద్రంగా ఉంటారు, కానీ జ్యోతిష్య సాధనాలు కనిపించవు.</string>
 
     <!-- Disclaimer & legal -->
     <string name="disclaimer_title">గమనిక</string>
@@ -372,7 +376,7 @@
     <!-- Report -->
     <string name="report_title">జీవిత రిపోర్ట్</string>
     <string name="report_headline">మీ పూర్తి జీవిత రిపోర్ట్</string>
-    <string name="report_pitch">18 అధ్యాయాల్లో సుమారు ఒక లక్ష పదాలు: బాల్యం, చదువు, ఉద్యోగం, వివాహం, సంతానం, ఆరోగ్యం, సంపద మరియు రాబోయే దశాబ్దాలు.</string>
+    <string name="report_pitch">మీ జీవితంపై 18 అధ్యాయాలు: బాల్యం, చదువు, ఉద్యోగం, వివాహం, సంతానం, ఆరోగ్యం, సంపద మరియు రాబోయే దశాబ్దాలు. కొద్ది నిమిషాల్లోనే సిద్ధం.</string>
     <string name="report_for">ఎవరి కోసం</string>
     <string name="report_teaser_title">ఉచిత నమూనా అధ్యాయం</string>
     <string name="report_teaser_cta">ఒక అధ్యాయం ఉచితంగా చదవండి</string>

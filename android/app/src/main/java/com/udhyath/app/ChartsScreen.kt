@@ -266,7 +266,20 @@ fun ChartsScreen(nav: NavHostController, pid: String?, showBack: Boolean) {
     val profiles by g.account.profiles.collectAsStateWithLifecycle()
     val user by g.account.user.collectAsStateWithLifecycle()
     val astro = user?.isAstrologer == true
-    val profile = profiles.firstOrNull { it.id == (pid ?: settings.activeProfileId) } ?: profiles.firstOrNull { it.relation != "client" }
+    // Clients are not in the family list (/api/profiles hides them), so when an
+    // astrologer opens a client's charts by id we fetch that one profile rather
+    // than silently falling back to somebody else's chart.
+    var fetchFailed by remember(pid) { mutableStateOf<Throwable?>(null) }
+    var fetchTick by remember(pid) { mutableIntStateOf(0) }
+    LaunchedEffect(pid, profiles, fetchTick) {
+        if (pid != null && profiles.none { it.id == pid }) {
+            runCatching { g.api.profile(pid) }
+                .onSuccess { g.account.upsertLocal(it.copy(id = it.id.ifBlank { pid })) }
+                .onFailure { fetchFailed = it }
+        }
+    }
+    val profile = if (pid != null) profiles.firstOrNull { it.id == pid }
+    else profiles.firstOrNull { it.id == settings.activeProfileId } ?: profiles.firstOrNull { it.relation != "client" }
     val tabs = if (astro) BASIC_TABS + PRO_TABS else BASIC_TABS
     // Always open on Rasi (and again when switching person): a restored index
     // would be off-screen in the scrollable tab row with no visible selection.
@@ -292,7 +305,15 @@ fun ChartsScreen(nav: NavHostController, pid: String?, showBack: Boolean) {
         })
     }) { pad ->
         Column(Modifier.padding(pad).fillMaxSize()) {
-            if (profile == null) { EmptyBox(stringResource(R.string.profile_none)); return@Column }
+            if (profile == null) {
+                val err = fetchFailed
+                when {
+                    err != null -> ErrorBox(err, onRetry = { fetchFailed = null; fetchTick++ })
+                    pid != null -> LoadingBox()
+                    else -> EmptyBox(stringResource(R.string.profile_none))
+                }
+                return@Column
+            }
             if (pid == null && !astro) {
                 val family = profiles.filter { it.relation != "client" }
                 Box(Modifier.padding(horizontal = 16.dp)) {

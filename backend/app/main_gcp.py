@@ -5,9 +5,13 @@ The legacy AWS app (app.main: DynamoDB, /v1 metered API, web chat) is not
 loaded here, so nothing on this path depends on AWS.
 """
 
+import contextlib
 import json
 import logging
+import os
 import re
+import threading
+import time
 
 from fastapi import FastAPI
 from fastapi.middleware.gzip import GZipMiddleware
@@ -18,8 +22,83 @@ from . import routes_admin, routes_ai, routes_features, routes_platform, store
 from .admin.errors import record_app_error
 
 logging.basicConfig(level=logging.INFO)
+log = logging.getLogger("udhyath.main")
 
-app = FastAPI(title="Prashna", version="2.0.0", docs_url=None, redoc_url=None)
+# Cold starts are the app's worst latency (min_instance_count = 0 means the
+# first user after an idle period waits for the container). Nothing heavy may
+# be imported at module scope: `anthropic`, `google-genai`, `firebase-admin`,
+# `fpdf2` and `PIL` are all imported lazily by the code that needs them, and
+# tests/platform/test_perf_imports.py fails the build if that regresses.
+WARMUP = os.environ.get("WARMUP_ON_START", "1").lower() not in ("0", "false", "no")
+
+
+def warm_process() -> None:
+    """Do the per-process one-off work before the first request needs it.
+
+    Between them the steps cover almost everything a cold instance would
+    otherwise do inside the user's very first request: the Firestore channel
+    and ADC token, the Firebase signing certificates (measured at ~0.8 s the
+    first time), the 500 KB places dataset, the i18n templates and the Swiss
+    Ephemeris files the chart engine opens on first use.
+
+    Each step runs on its own daemon thread: they are independent, and a step
+    that hangs (an unreachable Firestore retries for minutes) must not stop
+    the others from warming."""
+    steps = (
+        ("flags+firestore", store.get_flags),
+        ("firebase", _warm_firebase),
+        ("places", _warm_places),
+        ("i18n", _warm_i18n),
+        ("engine", _warm_engine),
+    )
+
+    def run(name, fn):
+        t0 = time.monotonic()
+        try:
+            fn()
+            log.info("warmup %s %d ms", name, (time.monotonic() - t0) * 1000)
+        except Exception as exc:
+            log.warning("warmup %s failed after %d ms: %s", name,
+                        (time.monotonic() - t0) * 1000, exc)
+
+    for name, fn in steps:
+        threading.Thread(target=run, args=(name, fn), name="warmup-" + name,
+                         daemon=True).start()
+
+
+def _warm_firebase() -> None:
+    from . import platform_auth
+    platform_auth.warm()
+
+
+def _warm_places() -> None:
+    from .features import places
+    places.load()
+
+
+def _warm_i18n() -> None:
+    from .features import common
+    common.templates(store.DEFAULT_LANG)
+    common.panchanga_names()
+
+
+def _warm_engine() -> None:
+    """One throwaway chart so swisseph opens its ephemeris files and the
+    jyotish modules are imported before a user asks for a chart."""
+    from jyotish import api as japi
+    japi.birth_chart({"year": 1990, "month": 5, "day": 15, "hour": 10, "minute": 30,
+                      "latitude": 17.385, "longitude": 78.4867, "tz_name": "Asia/Kolkata"})
+
+
+@contextlib.asynccontextmanager
+async def lifespan(_app: FastAPI):
+    if WARMUP:
+        warm_process()  # fans out to one daemon thread per step; never blocks
+    yield
+
+
+app = FastAPI(title="Prashna", version="2.0.0", docs_url=None, redoc_url=None,
+              lifespan=lifespan)
 app.add_middleware(GZipMiddleware, minimum_size=1024)
 store.install_error_handlers(app)
 app.add_exception_handler(Exception, record_app_error)
@@ -60,5 +139,10 @@ async def localize_error_details(request, call_next):
 
 
 @app.get("/healthz", include_in_schema=False)
+@app.get("/api/healthz", include_in_schema=False)
 def healthz():
+    """Both paths on purpose: the Google Front End answers `/healthz` itself
+    with its own 404 page and never forwards it to the container, so uptime
+    checks, the app's start-up warm ping and anything else outside Cloud Run
+    must use `/api/healthz`."""
     return {"ok": True}

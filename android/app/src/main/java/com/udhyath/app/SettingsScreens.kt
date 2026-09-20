@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.PersonRemove
 import androidx.compose.material.icons.filled.Policy
 import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.filled.SupportAgent
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.TextIncrease
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.*
@@ -74,6 +75,26 @@ fun MoreScreen(nav: NavHostController) {
     val balance by AppEvents.balance.collectAsStateWithLifecycle()
     val astro = user?.isAstrologer == true
     var confirmLogout by remember { mutableStateOf(false) }
+    // The role is only asked once, during onboarding; this is the way back.
+    var confirmRole by remember { mutableStateOf(false) }
+    var roleBusy by remember { mutableStateOf(false) }
+    var roleErr by remember { mutableStateOf<Throwable?>(null) }
+
+    if (confirmRole) AlertDialog(onDismissRequest = { confirmRole = false },
+        title = { Text(stringResource(R.string.role_change)) },
+        text = { Text(stringResource(if (astro) R.string.role_change_to_personal else R.string.role_change_to_astrologer)) },
+        confirmButton = {
+            TextButton(enabled = !roleBusy, onClick = {
+                roleBusy = true; roleErr = null
+                scope.launch {
+                    runCatching { g.api.patchMe(role = if (astro) "user" else "astrologer") }
+                        .onSuccess { g.account.setUser(it); g.account.refreshProfiles(); confirmRole = false }
+                        .onFailure { roleErr = it }
+                    roleBusy = false
+                }
+            }) { Text(stringResource(R.string.role_change_cta)) }
+        },
+        dismissButton = { TextButton(onClick = { confirmRole = false }) { Text(stringResource(R.string.cancel)) } })
 
     if (confirmLogout) AlertDialog(onDismissRequest = { confirmLogout = false },
         title = { Text(stringResource(R.string.logout)) }, text = { Text(stringResource(R.string.logout_confirm)) },
@@ -85,6 +106,9 @@ fun MoreScreen(nav: NavHostController) {
             Text(user?.name?.ifBlank { null } ?: user?.phone ?: user?.email ?: "", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             Text(listOfNotNull(user?.phone, user?.email).joinToString(" · "), color = MaterialTheme.colorScheme.onSurfaceVariant)
             Pill(stringResource(if (astro) R.string.role_astrologer else R.string.role_personal))
+            roleErr?.let { Text(errorText(it), color = MaterialTheme.colorScheme.error) }
+            NavRow(Icons.Default.SwapHoriz, stringResource(R.string.role_change),
+                stringResource(if (astro) R.string.role_personal else R.string.role_astrologer)) { confirmRole = true }
         }
         SectionCard {
             NavRow(Icons.Default.AccountBalanceWallet, stringResource(R.string.wallet_title), balance?.let { rupees(it) }) { nav.navigate(Routes.WALLET) }

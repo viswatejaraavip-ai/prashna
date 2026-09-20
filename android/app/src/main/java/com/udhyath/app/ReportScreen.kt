@@ -7,7 +7,9 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoStories
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.PictureAsPdf
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Toc
 import androidx.compose.material3.*
@@ -28,6 +30,76 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObject
 
+/** The backend's promise for a finished report (REPORT_BUDGET_S). */
+private const val REPORT_BUDGET_S = 300
+private const val REPORT_POLL_MS = 3_000L
+
+private val String.isGenerating: Boolean
+    get() = this == "generating" || this == "queued" || this == "pending"
+
+/** Seconds since the server created the report (0 if the date can't be read). */
+private fun reportElapsedS(r: Report): Int = runCatching {
+    val iso = r.created_at.orEmpty()
+    val inst = java.time.Instant.parse(if (iso.endsWith("Z") || iso.contains('+')) iso else "${iso}Z")
+    ((System.currentTimeMillis() - inst.toEpochMilli()) / 1000).toInt()
+}.getOrDefault(0).coerceAtLeast(0)
+
+private fun mmss(seconds: Int): String = "%d:%02d".format(seconds / 60, seconds % 60)
+
+/**
+ * Live progress for one report: a bar, "N of M chapters ready" and a
+ * countdown to the promised delivery time.
+ *
+ * Chapters are written in parallel on the server, so `sections_done` sits at
+ * zero for the first minute and then fills quickly. A purely chapter-based
+ * bar would look stuck, so the bar is the better of the chapter count and the
+ * elapsed share of the 5-minute budget (capped at 90%, so it can never claim
+ * to be finished before the report is). Once the budget is spent the
+ * countdown gives way to an indeterminate bar rather than lying about "0:05".
+ */
+@Composable
+private fun ReportProgress(r: Report, modifier: Modifier = Modifier) {
+    var tick by remember(r.id) { mutableIntStateOf(0) }
+    LaunchedEffect(r.id) { while (isActive) { delay(1_000); tick++ } }
+    val total = r.sections_total.coerceAtLeast(1)
+    val done = r.sections_done.coerceIn(0, total)
+    val elapsed = remember(r.id, done, tick) { reportElapsedS(r) }
+    val fraction = maxOf(done / total.toFloat(), (elapsed / REPORT_BUDGET_S.toFloat()).coerceIn(0f, 0.9f))
+    val left = REPORT_BUDGET_S - elapsed
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(stringResource(R.string.report_generating, done, total), modifier = Modifier.weight(1f))
+            Text(if (left > 0) mmss(left) else "${(fraction * 100).toInt()}%",
+                style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.secondary)
+        }
+        if (left > 0) LinearProgressIndicator(progress = { fraction }, modifier = Modifier.fillMaxWidth())
+        else LinearProgressIndicator(Modifier.fillMaxWidth())
+    }
+}
+
+/** The chapter list, filling in as chapters land: written ones show their
+ *  title, the rest keep their place with a dimmed number. */
+@Composable
+private fun ChapterChecklist(r: Report, modifier: Modifier = Modifier) {
+    val byIdx = r.sections.associateBy { it.idx }
+    val total = maxOf(r.sections_total, r.sections.size, 1)
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        (1..total).forEach { i ->
+            val sec = byIdx[i]
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(if (sec != null) Icons.Default.CheckCircle else Icons.Default.Schedule,
+                    contentDescription = null, modifier = Modifier.size(16.dp),
+                    tint = if (sec != null) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.width(8.dp))
+                Text("$i. ${sec?.title ?: "…"}", style = MaterialTheme.typography.bodySmall,
+                    color = if (sec != null) MaterialTheme.colorScheme.onSurface
+                    else MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+}
+
 class ReportsVm(private val g: AppGraph) : ViewModel() {
     val reports = MutableStateFlow<Load<List<Report>>>(Load.Loading)
     val teaser = MutableStateFlow<Load<JsonObject>?>(null)
@@ -38,11 +110,12 @@ class ReportsVm(private val g: AppGraph) : ViewModel() {
 
     init {
         refresh()
-        // Poll while anything is generating (the screen is open).
+        // Poll while anything is generating (the screen is open). The whole
+        // report now takes ~3 minutes, so the list has to move visibly.
         viewModelScope.launch {
             while (isActive) {
-                delay(20_000)
-                if (reports.value.dataOrNull?.any { it.status == "generating" } == true) refresh(quiet = true)
+                delay(REPORT_POLL_MS)
+                if (reports.value.dataOrNull?.any { it.status.isGenerating } == true) refresh(quiet = true)
             }
         }
     }
@@ -182,9 +255,7 @@ private fun ReportRow(r: Report, people: List<Profile>, onOpen: () -> Unit, onRe
         Text(listOfNotNull(who, formatDateTime(r.created_at)).joinToString(" · "), style = MaterialTheme.typography.labelLarge)
         when (r.status) {
             "generating", "queued", "pending" -> {
-                Text(stringResource(R.string.report_generating, r.sections_done, r.sections_total))
-                val total = r.sections_total.coerceAtLeast(1)
-                LinearProgressIndicator(progress = { r.sections_done / total.toFloat() }, modifier = Modifier.fillMaxWidth())
+                ReportProgress(r)
                 Text(stringResource(R.string.report_notify_note), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             "failed" -> {
@@ -218,10 +289,13 @@ fun ReportReaderScreen(id: String, onBack: () -> Unit) {
     var pdfErr by remember { mutableStateOf<Throwable?>(null) }
     var tocOpen by remember { mutableStateOf(false) }
     val list = rememberLazyListState()
+    var resuming by remember { mutableStateOf(false) }
     LaunchedEffect(id, tick) {
         state = runCatching { g.api.report(id) }.fold({ Load.Ok(it) }, { Load.Err(it) })
-        while ((state as? Load.Ok)?.data?.status == "generating") {
-            delay(20_000)
+        // Poll while the report is being written: chapters appear in the
+        // reader as they land, and the progress card follows them.
+        while ((state as? Load.Ok)?.data?.status?.isGenerating == true) {
+            delay(REPORT_POLL_MS)
             runCatching { g.api.report(id) }.onSuccess { state = Load.Ok(it) }
         }
     }
@@ -253,11 +327,30 @@ fun ReportReaderScreen(id: String, onBack: () -> Unit) {
                 is Load.Ok -> LazyColumn(state = list, contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     if (pdfBusy) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
                     pdfErr?.let { e -> item { Text(errorText(e), color = MaterialTheme.colorScheme.error) } }
-                    if (s.data.status == "generating") item {
+                    if (s.data.status.isGenerating) item {
                         SectionCard(accent = true) {
-                            Text(stringResource(R.string.report_generating, s.data.sections_done, s.data.sections_total))
-                            LinearProgressIndicator(progress = { s.data.sections_done / s.data.sections_total.coerceAtLeast(1).toFloat() },
-                                modifier = Modifier.fillMaxWidth())
+                            ReportProgress(s.data)
+                            ChapterChecklist(s.data)
+                            Text(stringResource(R.string.report_notify_note), style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    if (s.data.status == "failed") item {
+                        SectionCard {
+                            Text(stringResource(R.string.report_failed, s.data.sections_done, s.data.sections_total),
+                                color = MaterialTheme.colorScheme.error)
+                            ChapterChecklist(s.data)
+                            // Resume keeps every chapter already written and
+                            // only pays for the missing ones.
+                            Button(enabled = !resuming, onClick = {
+                                resuming = true
+                                scope.launch {
+                                    runCatching { g.api.resumeReport(id) }
+                                        .onSuccess { ReportWatchWorker.watch(ctx, id) }
+                                    resuming = false
+                                    tick++
+                                }
+                            }) { Text(stringResource(R.string.report_resume)) }
                         }
                     }
                     itemsIndexed(s.data.sections.sortedBy { it.idx }) { _, sec ->
@@ -277,7 +370,8 @@ fun ReportReaderScreen(id: String, onBack: () -> Unit) {
             title = { Text(stringResource(R.string.report_toc)) },
             text = {
                 LazyColumn {
-                    val offset = listOfNotNull(pdfBusy.takeIf { it }, pdfErr, report.takeIf { it.status == "generating" }).size
+                    val offset = listOfNotNull(pdfBusy.takeIf { it }, pdfErr,
+                            report.takeIf { it.status.isGenerating || it.status == "failed" }).size
                     itemsIndexed(report.sections.sortedBy { it.idx }) { i, sec ->
                         Text("${sec.idx}. ${sec.title}", Modifier.fillMaxWidth().clickable {
                             tocOpen = false; scope.launch { list.animateScrollToItem(i + offset) }

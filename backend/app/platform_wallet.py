@@ -35,12 +35,15 @@ RAZORPAY_WEBHOOK_SECRET = os.environ.get("RAZORPAY_WEBHOOK_SECRET", "")
 _TOKEN_RE = re.compile(r"^[A-Za-z0-9._:\-]{16,1024}$")
 
 
-def pricing() -> Dict:
+def pricing(lang: str = "") -> Dict:
     from .platform_auth import TRIAL_CREDIT_UNITS
+    # The report price is per language and lives in reports.py, which also
+    # charges the wallet: advertise exactly what we debit.
+    from . import reports
     return {
         "currency": "INR",
         "query_price_units": int(store.get_flags().get("query_price_units", 1000)),
-        "report_price_units": REPORT_PRICE_UNITS,
+        "report_price_units": reports.report_fee_units(lang),
         "pro_plan_units": PRO_PLAN_UNITS,
         "pro_plan_days": PRO_PLAN_DAYS,
         "trial_credit_units": TRIAL_CREDIT_UNITS,
@@ -48,6 +51,7 @@ def pricing() -> Dict:
         "play_products": [{"product_id": pid, "amount_rupees": r, "amount_units": r * 100}
                           for pid, r in PLAY_PRODUCTS.items()],
         "razorpay_enabled": bool(RAZORPAY_KEY_ID),
+        **{k: v for k, v in reports.report_pricing().items() if k != "report_price_units"},
     }
 
 
