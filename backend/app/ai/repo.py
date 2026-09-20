@@ -130,14 +130,26 @@ MEMORY_VERSION = 2
 def get_memory(uid: str, pid: str) -> List[str]:
     if not pid:
         return []
-    snap = (_col("users").document(uid).collection("ai_memory").document(pid).get())
+    ref = _col("users").document(uid).collection("ai_memory").document(pid)
+    snap = ref.get()
     if not snap.exists:
         return []
     doc = snap.to_dict() or {}
     if int(doc.get("v") or 1) < MEMORY_VERSION:
-        n = len(doc.get("facts") or [])
-        if n:
-            log.info("ignoring %d ungrounded memory fact(s) for profile %s", n, pid)
+        old = list(doc.get("facts") or [])
+        if old:
+            # Retire them here and now: they are wrong things said about a
+            # real person, and leaving them in the document means the next
+            # reader has to know this rule too. Kept under `legacy_facts`
+            # rather than deleted, so what the agent had believed about a
+            # client can still be audited. Happens at most once per profile.
+            log.info("retiring %d ungrounded memory fact(s) for profile %s",
+                     len(old), pid)
+            try:
+                ref.set({"facts": [], "legacy_facts": old, "v": MEMORY_VERSION,
+                         "retired_at": store.now_iso()}, merge=True)
+            except Exception as exc:     # never fail a query over housekeeping
+                log.warning("could not retire memory for %s: %s", pid, exc)
         return []
     return list(doc.get("facts") or [])
 

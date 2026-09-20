@@ -320,3 +320,33 @@ def test_cloud_voice_kill_switch(api):
                         files={"audio": ("q.ogg", b"OggS" + b"\0" * 512, "audio/ogg")})
     assert r.status_code == 503 and r.json()["code"] == "maintenance"
     store.clear_flags_cache()
+
+
+# --------------------------------------------------- memory provenance ----
+
+def test_memory_written_before_grounding_is_retired_not_believed(api):
+    """Regression (backend/evals/RESULTS.md): the agent stored its own
+    predictions as the client's biography, then read them back as history —
+    "based on ... your session memory noting marriage occurred between late
+    2021 and mid-2022", to a client who never said it. Facts written before
+    memory.grounded() existed carry no provenance, so they are not used, and
+    they are retired out of the way instead of sitting in the profile."""
+    from app.ai import repo
+    h, p, sid = ready(api)
+    poisoned = ["Marriage occurred between February and October 2021",
+                "Ascendant is Virgo (Kanya)"]
+    api.db.collection("users").document("u1").collection("ai_memory") \
+       .document(p["id"]).set({"facts": poisoned})          # no "v": legacy
+
+    assert repo.get_memory("u1", p["id"]) == []             # not believed
+    doc = api.db.data("users/u1/ai_memory/" + p["id"])
+    assert doc["facts"] == [] and doc["legacy_facts"] == poisoned
+    assert doc["v"] == repo.MEMORY_VERSION and doc["retired_at"]
+
+    # and nothing the astrologer said gets written back in its place
+    api.set_models(g=FakeGemini(plan=PLAN_OK), c=FakeClaude(lang="te"))
+    r = api.client.post("/api/sessions/%s/ask" % sid, headers=h,
+                        json={"text": "నా ఉద్యోగం ఎప్పుడు మారుతుంది?"})
+    assert r.status_code == 200, r.text
+    after = api.db.data("users/u1/ai_memory/" + p["id"])
+    assert all(f not in (after.get("facts") or []) for f in poisoned)
