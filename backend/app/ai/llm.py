@@ -248,23 +248,152 @@ def flash(name: str, system: str, user: str, *, max_output_tokens: int,
     text = getattr(resp, "text", None) or ""
     if schema is None:
         return text.strip(), stage
-    return parse_json(text), stage
+    try:
+        return parse_json(text), stage
+    except ValueError as exc:
+        # The tokens were spent and must still be traced and budgeted, so the
+        # Stage travels with the failure (the caller decides what to do next).
+        raise JsonError(str(exc), stage=stage, text=text) from exc
+
+
+class JsonError(ValueError):
+    """Flash returned something `json.loads` cannot read, even after repair.
+
+    A ValueError, so callers that only catch ValueError keep working; `stage`
+    carries the cost/latency of the call that produced it."""
+
+    def __init__(self, message: str, stage: Optional[Stage] = None, text: str = ""):
+        super().__init__(message)
+        self.stage, self.text = stage, text
+
+
+_LONE_SURROGATE = re.compile(r"[\ud800-\udfff]")
+_HEX4 = re.compile(r"[0-9a-fA-F]{4}")
+_HEXDIGITS = "0123456789abcdefABCDEF"
+_SIMPLE_ESCAPES = '"\\/bfnrt'
+
+
+def _repair_escapes(text: str) -> str:
+    """Drop escape sequences `json.loads` cannot read, keeping the rest.
+
+    Flash occasionally emits a broken `\\u` escape while writing Devanagari or
+    another Indic script — "Invalid \\uXXXX escape: line 1 column 553" — and an
+    otherwise perfect plan is lost. The character that escape stood for is
+    worth far less than the turn, so the escape is dropped and the response is
+    read. Backslash runs are counted, so a legitimate `\\\\u` (an escaped
+    backslash followed by the letter u) is left exactly as it is.
+    """
+    out, i, n = [], 0, len(text)
+    while i < n:
+        ch = text[i]
+        if ch != "\\":
+            out.append(ch)
+            i += 1
+            continue
+        run = 0
+        while i + run < n and text[i + run] == "\\":
+            run += 1
+        out.append("\\" * (run - run % 2))       # the escaped backslashes
+        i += run
+        if run % 2 == 0:                         # nothing is being escaped
+            continue
+        esc = text[i] if i < n else ""
+        if esc == "u" and _HEX4.match(text, i + 1):
+            out.append("\\u" + text[i + 1:i + 5])
+            i += 5
+        elif esc == "u":                         # broken \uXXXX: drop it
+            i += 1
+            dropped = 0
+            while i < n and dropped < 3 and text[i] in _HEXDIGITS:
+                i, dropped = i + 1, dropped + 1
+        elif esc in _SIMPLE_ESCAPES:
+            out.append("\\" + esc)
+            i += 1
+        elif esc:                                # invalid escape: keep the char
+            out.append(esc)
+            i += 1
+    return "".join(out)
+
+
+def _close_truncated(text: str) -> str:
+    """Close a JSON object that was cut off mid-flight (max_output_tokens).
+
+    Everything the model finished writing is kept; the unfinished string and
+    the still-open brackets are closed so the fields that did arrive can be
+    read. Returns `text` unchanged when nothing is open."""
+    stack, in_str, esc = [], False, False
+    for ch in text:
+        if in_str:
+            if esc:
+                esc = False
+            elif ch == "\\":
+                esc = True
+            elif ch == '"':
+                in_str = False
+            continue
+        if ch == '"':
+            in_str = True
+        elif ch in "[{":
+            stack.append(ch)
+        elif ch in "]}" and stack:
+            stack.pop()
+    if not stack and not in_str:
+        return text
+    out = text[:-1] if esc else text
+    if in_str:
+        out += '"'
+    else:
+        out = out.rstrip()
+        while out and out[-1] == ",":
+            out = out[:-1].rstrip()
+        if out.endswith(":"):
+            out += '""'
+    return out + "".join("]" if c == "[" else "}" for c in reversed(stack))
+
+
+def strip_lone_surrogates(text: str) -> str:
+    """Unpaired surrogates survive json.loads but explode on encode."""
+    return _LONE_SURROGATE.sub("", text or "")
+
+
+def _scrub(val):
+    if isinstance(val, str):
+        return strip_lone_surrogates(val)
+    if isinstance(val, list):
+        return [_scrub(v) for v in val]
+    if isinstance(val, dict):
+        return {k: _scrub(v) for k, v in val.items()}
+    return val
 
 
 def parse_json(text: str) -> Dict:
+    """Read a JSON object out of a model response, salvaging what is readable.
+
+    In order: the text as sent, the widest `{...}` slice of it, the same with
+    unreadable escapes dropped, and finally that repaired text closed off at
+    the point it was truncated. Raises the original decoder error if none of
+    them parse."""
     text = (text or "").strip()
     if text.startswith("```"):
         text = re.sub(r"^```[a-zA-Z]*\s*|\s*```$", "", text)
-    try:
-        val = json.loads(text)
-    except ValueError:
-        m = re.search(r"\{.*\}", text, re.S)
-        if not m:
-            raise
-        val = json.loads(m.group(0))
+    m = re.search(r"\{.*\}", text, re.S)
+    repaired = _repair_escapes(text)
+    start = repaired.find("{")
+    val = None
+    for candidate in (text, m.group(0) if m else None, repaired,
+                      _close_truncated(repaired[start:]) if start >= 0 else None):
+        if not candidate:
+            continue
+        try:
+            val = json.loads(candidate)
+        except ValueError:
+            continue
+        break
+    if val is None:                                   # give the real error back
+        json.loads(text)
     if not isinstance(val, dict):
         raise ValueError("expected a JSON object")
-    return val
+    return _scrub(val)
 
 
 # ---------------- Claude Opus 4.5 ----------------

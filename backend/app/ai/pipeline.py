@@ -27,7 +27,9 @@ from typing import Callable, Dict, List, Optional, Tuple
 
 from .. import guard, store
 from . import budget as budget_mod
-from . import clock, executor, llm, memory, planner, reasoner, repo, speech
+from . import costs as costs_mod
+from . import (clock, dates, delivery, executor, llm, memory, planner, reasoner,
+               repo, speech)
 
 log = logging.getLogger("udhyath.ai.pipeline")
 
@@ -146,7 +148,8 @@ def run_query(uid: str, session: Dict, text: str = "", *,
     b = budget_mod.Budget(int(f.get("cost_ceiling_units", 500)))
     stages: List[llm.Stage] = []
     st = {"status": "error", "reply": "", "error": None, "charged": 0,
-          "charge_error": None, "transcript": None, "audio": None}
+          "charge_error": None, "transcript": None, "audio": None,
+          "date_check": None}
 
     def add(stage: llm.Stage):
         stages.append(stage)
@@ -236,26 +239,52 @@ def run_query(uid: str, session: Dict, text: str = "", *,
         b.reserve("memory", budget_mod.memory_reserve())
         tts_tier = speech.tts_tier_for(lang) if want_tts else None
         brief_out = executor.VOICE_BRIEF_TOKENS if mode == "voice" else executor.TEXT_BRIEF_TOKENS
+        # The client's whole dasha ladder is appended to the brief verbatim
+        # rather than condensed: a summary of a ninety-year timeline is either
+        # wrong or the whole brief, and Flash was measured cutting it off
+        # mid-life. It is budgeted as part of the facts the reasoner reads.
+        results, ladder_json = executor.split_ladder(results)
+        ladder = executor.life_ladder(ladder_json, profile) if ladder_json else ""
+        if ladder_json and not ladder:
+            # Not a ladder we can format (an engine error string, an unknown
+            # shape). Put it back rather than let the tool's output disappear
+            # from the brief entirely.
+            results[executor.LADDER_LABEL] = ladder_json
         # When the engine output is already small, Opus reads it directly and
         # the Flash brief is skipped: the reason floor must then be sized on
         # the real JSON rather than on a full-size brief.
         skip_brief = executor.skips_brief(results)
-        facts_tokens = (executor.raw_tokens(results) if skip_brief else brief_out)
+        facts_tokens = ((executor.raw_tokens(results) if skip_brief else brief_out)
+                        + costs_mod.estimate_tokens(ladder))
         reason_reserve = _reason_floor(question, summary, facts, facts_tokens, mode, tts_tier)
-        if b.remaining() < reason_reserve:   # misconfigured ceiling: stop before spending more
+        # Abort only when even the *smallest* prompt reasoner.fit() would fall
+        # back to (no memory, no summary, a third of the brief) cannot afford a
+        # minimum answer. Measuring the abort against the full-context reserve
+        # instead turned a query that fit after shrinking into an outage.
+        reason_min = _reason_floor(question, summary, facts, facts_tokens, mode,
+                                   tts_tier, shrunk=True)
+        if b.remaining() < reason_min:   # misconfigured ceiling: stop before spending more
             st.update(status="error", reply=guard.error_message(lang),
-                      error="budget: ceiling too low for a minimum answer")
+                      error="budget: ceiling too low for a minimum answer "
+                            "(need %d paise, %d left)" % (reason_min, b.remaining()))
             return _finish(uid, session, question, st, stages, b, t0, trace_id,
                            lang, mode, dry_run, plan, on_done)
+        timeframe = plan.get("timeframe", "any")
         if skip_brief:
-            brief, stage = executor.raw_brief(results)
+            brief, stage = executor.raw_brief(results, profile, timeframe)
         else:
             max_in = budget_mod.brief_input_cap_tokens(b.remaining(), brief_out,
                                                        reason_reserve)
             brief, stage = executor.make_brief(
                 results, focus=plan["focus"], question=question, profile=profile,
                 max_out_tokens=brief_out, max_in_tokens=max_in,
-                today=clock.stamp())
+                today=clock.stamp(), timeframe=timeframe)
+        if ladder:
+            # First, not last: reasoner.fit() shrinks a brief that will not
+            # fit by cutting its tail, and for a "when did it happen"
+            # question the exact ladder is the part worth keeping.
+            brief = ladder + "\n\n" + brief.lstrip()
+            stage.detail = dict(stage.detail or {}, ladder_chars=len(ladder))
         add(stage)
 
         # ---- 3. reason (budget-capped) ----
@@ -268,8 +297,12 @@ def run_query(uid: str, session: Dict, text: str = "", *,
                       error="budget: cannot fit a minimum answer (cap %d)" % fit["max_tokens"])
             return _finish(uid, session, question, st, stages, b, t0, trace_id,
                            lang, mode, dry_run, plan, on_done)
+        # Corrupted characters (U+FFFD and the junk welded to them) are cut
+        # out of the stream as it goes past, so the client never sees them.
+        scrubber = delivery.Scrubber(lang, on_delta)
         try:
-            reply, stage = reasoner.answer(fit, on_delta=on_delta)
+            reply, stage = reasoner.answer(
+                fit, on_delta=scrubber.feed if on_delta else None)
             add(stage)
         except Exception as exc:
             log.error("reasoner failed: %s", exc)
@@ -277,12 +310,38 @@ def run_query(uid: str, session: Dict, text: str = "", *,
                       error="reason: %s" % str(exc)[:300])
             return _finish(uid, session, question, st, stages, b, t0, trace_id,
                            lang, mode, dry_run, plan, on_done)
+        finally:
+            scrubber.flush()
+        clean = delivery.scrub(reply, lang)
+        if clean != reply:
+            log.warning("corrupted characters removed from a %s reply (trace=%s)",
+                        lang, trace_id)
+        reply = clean
         if not reply or guard.leaks_system_prompt(reply):
             st.update(status="refused" if reply else "error",
                       reply=guard.refusal_for(lang) if reply else guard.error_message(lang),
                       error="leak_blocked" if reply else "empty_reply")
             return _finish(uid, session, question, st, stages, b, t0, trace_id,
                            lang, mode, dry_run, plan, on_done)
+        # We only charge for an answer that answers. A turn that ends by
+        # asking the client to come back with a shorter question delivered
+        # nothing, so it is a clarification: free, like every other turn the
+        # astrologer does not read the chart for.
+        if not delivery.delivers_a_reading(reply, mode=mode):
+            log.warning("reason produced no reading (trace=%s, %d chars); free turn",
+                        trace_id, len(reply))
+            st.update(status="clarify", reply=reply, error="no_reading_delivered")
+            return _finish(uid, session, question, st, stages, b, t0, trace_id,
+                           lang, mode, dry_run, plan, on_done)
+        # Free, deterministic: did the answer date anything before the client
+        # was born, or at an age nobody reaches? That is always a defect in
+        # the reading (evals/RESULTS.md: a career at 11, a wedding at 104).
+        # Recorded, not rewritten — a second Opus call would cost more than
+        # the answer and could not be trusted to do better.
+        st["date_check"] = dates.check(reply, profile)
+        if st["date_check"]:
+            log.warning("answer dates events outside the client's life "
+                        "(trace=%s, %s)", trace_id, st["date_check"]["bad"])
         answered = True
         st.update(status="ok", reply=reply)
 
@@ -344,12 +403,22 @@ def _context(uid: str, pid: str, dry_run: bool, profile: Optional[Dict],
             out.get("others") or [])
 
 
+SHRUNK_BRIEF_FRACTION = 0.35       # reasoner.fit()'s smallest step
+
+
 def _reason_floor(question: str, summary: str, facts: List[str], brief_out: int,
-                  mode: str, tts_tier: Optional[str]) -> float:
+                  mode: str, tts_tier: Optional[str], shrunk: bool = False) -> float:
     """Minimum Opus spend we must keep available when sizing the brief
-    input: full prompt with a max-size brief + the mode's minimum answer."""
+    input: full prompt with a max-size brief + the mode's minimum answer.
+
+    `shrunk=True` prices the last prompt reasoner.fit() would try before
+    giving up — no memory, no session summary, a third of the brief — which
+    is what the query actually costs if the full context does not fit."""
     from . import costs
     m = llm.CLAUDE_MODEL
+    if shrunk:
+        summary, facts = "", []
+        brief_out = int(brief_out * SHRUNK_BRIEF_FRACTION)
     in_tok = (costs.estimate_tokens(reasoner.SYSTEM_PROMPT + reasoner.VOICE_STYLE)
               + costs.estimate_tokens(question) + costs.estimate_tokens(summary[:1500])
               + costs.estimate_tokens(" ".join(facts[:8])) + brief_out + 120)
@@ -399,6 +468,10 @@ def _finish(uid, session, question, st, stages, b, t0, trace_id, lang, mode,
     }
     if st["charge_error"]:
         trace["charge_error"] = st["charge_error"]
+    if st.get("date_check"):
+        trace["date_check"] = st["date_check"]
+    if plan.get("timeframe"):
+        trace["timeframe"] = plan["timeframe"]
     trace["budget"] = budget_mod.summary(b)
 
     result = Result(reply=st["reply"], status=status, trace_id=trace_id,
@@ -477,6 +550,11 @@ def _tail(uid, session, question, st, stages, b, trace, status, answered,
                 roll["voice_queries"] = 1
             if status == "over_ceiling":
                 roll["over_ceiling"] = 1
+            if st.get("date_check"):
+                # Answers that dated something outside the client's life. A
+                # daily count makes the accuracy defect visible without
+                # re-running the evaluation.
+                roll["impossible_dates"] = 1
         elif status == "error":
             roll["errors"] = 1
         else:

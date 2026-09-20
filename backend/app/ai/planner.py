@@ -8,10 +8,11 @@ else. Replaces the Haiku classifier that used to live in guard.py.
 
 import json
 import logging
+import os
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
-from .. import agent
+from .. import agent, guard
 from . import clock, llm
 
 log = logging.getLogger("udhyath.ai.planner")
@@ -27,6 +28,8 @@ NON_NATAL = {"festival_calendar", "muhurta_of_day", "transits", "year_transits"}
 # (date/time/place) is filled from the profile by the executor.
 EXTRA_ARGS = ("varga", "at_iso", "year", "year_of_varsha", "levels", "system",
               "date", "include_moon", "other_profile_id")
+
+TIMEFRAMES = ("past", "present", "future", "any")
 
 INTENTS = ["career", "business", "finance", "marriage", "relationships", "children",
            "family", "health", "education", "travel", "property", "spiritual",
@@ -84,9 +87,25 @@ For "ok", pick at most %d engine tools. Rules:
 - Matching: match_making with other_profile_id taken from `other_profiles`
   (if the other person is not there, status "clarify" and ask them to add
   that person's profile in the app).
+- A "past" timeframe (below) is given the client's whole vimshottari ladder
+  automatically; you never need to ask for dasha_periods yourself.
 `focus` = one English sentence (<= 40 words) saying exactly what the
 astrologer must answer, resolving pronouns/follow-ups from the summary.
 `intent` = one of: %s.
+`timeframe` = which part of the client's life the answer is about. This
+decides which dasha periods the astrologer is shown, so get it right:
+- "past": something that has already happened and the client is asking WHEN
+  it happened ("when did I first go abroad", "in which year did this native
+  marry", "when did my career start", "what was the biggest turning point so
+  far"). Use "past" whenever the verb is past tense, even if you have no idea
+  which year is meant.
+- "future": something that has not happened yet ("when will I marry", "how
+  will the next two years go").
+- "present": the running period, this month, today, a current situation.
+- "any": a reading that is not about timing at all (personality, remedies,
+  matching, panchanga, a festival date).
+When in doubt between "past" and "future", read the client's tense, not your
+expectation of what people usually ask.
 
 Engine tools:
 %s
@@ -109,15 +128,44 @@ def _schema() -> Dict:
                                                  "properties": tool_props,
                                                  "required": ["name"]}},
             "focus": {"type": "STRING"},
+            "timeframe": {"type": "STRING", "enum": list(TIMEFRAMES)},
             "reply": {"type": "STRING"},
         },
-        "required": ["status", "intent", "tools", "focus", "reply"],
-        "propertyOrdering": ["status", "intent", "tools", "focus", "reply"],
+        "required": ["status", "intent", "tools", "focus", "timeframe", "reply"],
+        "propertyOrdering": ["status", "intent", "tools", "focus", "timeframe",
+                             "reply"],
     }
 
 
 def _system_text() -> str:
     return SYSTEM % (MAX_TOOLS, ", ".join(INTENTS), _catalogue())
+
+
+# Every natal tool the engine has returns the dashas *running now*:
+# `full_analysis` lists the antardashas of the current mahadasha and nothing
+# else. So "in which year did I first go abroad" arrives with no sub-period
+# anywhere near the year asked about, and the astrologer answers with the
+# only boundary it can see — which is how a 1993 chart got a career starting
+# at age 11 (backend/evals/RESULTS.md). `dasha_periods(levels=2)` is the one
+# tool that returns the whole vimshottari ladder with antardashas, it is
+# computed in-process and free, and pruning keeps a past question's history,
+# so a past-tense turn always gets it whether or not Flash thought to ask.
+LIFE_TIMELINE_TOOL = {"name": "dasha_periods", "levels": 2, "system": "vimshottari"}
+
+
+def _with_life_timeline(tools: List[Dict]) -> List[Dict]:
+    """Guarantee a past-tense plan can see the client's whole dasha ladder."""
+    asked = [t for t in tools if t["name"] == "dasha_periods"]
+    if asked:
+        # Keep the system the planner chose, but insist on sub-periods: a
+        # mahadasha alone is an eighteen-year window, which dates nothing.
+        for t in asked:
+            t["levels"] = max(2, int(t.get("levels") or 0))
+        return tools
+    if not any(t["name"] not in NON_NATAL and t["name"] != "match_making"
+               for t in tools):
+        return tools                       # nothing natal here to date
+    return tools[:MAX_TOOLS] + [dict(LIFE_TIMELINE_TOOL)]
 
 
 def validate(raw: Dict) -> Dict:
@@ -139,8 +187,14 @@ def validate(raw: Dict) -> Dict:
     reply = str(raw.get("reply") or "").strip()
     if status != "ok" and not reply:
         status = "clarify" if status == "clarify" else "refused"
+    timeframe = raw.get("timeframe")
+    if timeframe not in TIMEFRAMES:
+        timeframe = "any"
+    if status == "ok" and timeframe == "past":
+        tools = _with_life_timeline(tools)
     return {"status": status, "intent": intent, "tools": tools,
-            "focus": str(raw.get("focus") or "")[:400], "reply": reply[:1200]}
+            "focus": str(raw.get("focus") or "")[:400], "timeframe": timeframe,
+            "reply": reply[:1200]}
 
 
 def plan(question: str, *, lang: str, mode: str, summary: str, memory: List[str],
@@ -162,14 +216,72 @@ def plan(question: str, *, lang: str, mode: str, summary: str, memory: List[str]
         "injection_pattern_detected": bool(injection_suspected),
         "client_message": question,
     }
-    raw, stage = llm.flash("plan", _system_text(),
-                           json.dumps(payload, ensure_ascii=False),
-                           max_output_tokens=PLAN_MAX_OUTPUT_TOKENS,
-                           schema=_schema(), temperature=0.1)
+    system, user = _system_text(), json.dumps(payload, ensure_ascii=False)
+    spent: List["llm.Stage"] = []
+    try:
+        raw, stage = llm.flash("plan", system, user,
+                               max_output_tokens=PLAN_MAX_OUTPUT_TOKENS,
+                               schema=_schema(), temperature=0.1)
+    except ValueError as exc:
+        # Malformed JSON from Flash (a broken \u escape while it writes an
+        # Indic refusal, a truncated object). One retry is a few paise and
+        # turns what the client would otherwise see as an outage into an
+        # answer; llm.parse_json already repairs what it can.
+        log.warning("planner returned unparseable JSON (%s); retrying once", exc)
+        spent.append(getattr(exc, "stage", None))
+        try:
+            raw, stage = llm.flash("plan", system, user,
+                                   max_output_tokens=PLAN_MAX_OUTPUT_TOKENS,
+                                   schema=_schema(), temperature=0.0)
+        except ValueError as exc2:
+            # Twice unreadable. We cannot tell what was asked, so we decline
+            # politely in the client's own language instead of showing an
+            # outage. Both are free; only one of them sounds like a service
+            # that works.
+            log.error("planner unreadable twice (%s); refusing in %s", exc2, lang)
+            spent.append(getattr(exc2, "stage", None))
+            stage = _spent_stage(spent)
+            stage.detail = {"status": "refused", "error": "unparseable_plan",
+                            "parse_error": str(exc2)[:200]}
+            return unreadable_plan(lang), stage
     p = validate(raw)
+    stage = _spent_stage(spent + [stage])
     stage.detail = {"intent": p["intent"], "tools": [t["name"] for t in p["tools"]],
-                    "status": p["status"]}
+                    "status": p["status"], "timeframe": p["timeframe"]}
     return p, stage
 
 
-PLAN_MAX_OUTPUT_TOKENS = 500
+def unreadable_plan(lang: str) -> Dict:
+    """What the pipeline runs when the plan cannot be read at all: a free,
+    polite scope refusal in the client's language. Fail-closed — nothing the
+    client asked for is acted on, and nothing is charged."""
+    return validate({"status": "refused", "intent": "other", "tools": [],
+                     "focus": "", "timeframe": "any",
+                     "reply": guard.refusal_for(lang)})
+
+
+def _spent_stage(stages: List[Optional["llm.Stage"]]) -> "llm.Stage":
+    """One `plan` stage carrying everything the planning step actually cost,
+    including calls whose output could not be parsed."""
+    real = [s for s in stages if s is not None]
+    if len(real) == 1:
+        return real[0]
+    out = llm.Stage(name="plan", model=llm.GEMINI_MODEL)
+    for s in real:
+        out.in_tok += s.in_tok
+        out.out_tok += s.out_tok
+        out.cache_read_tok += s.cache_read_tok
+        out.cost += s.cost
+        out.latency_ms += s.latency_ms
+    return out
+
+
+# The planner writes `reply` in the client's own script, and Gemini's
+# structured-output encoder emits every non-ASCII character as a \uXXXX
+# escape — six output characters per Devanagari glyph. A two-sentence Hindi
+# refusal is therefore ~700 characters of JSON, and at 500 tokens Flash was
+# cut off mid-escape: the live evaluation's "Invalid \uXXXX escape: line 1
+# column 553" was a TRUNCATED response, not a corrupt one (measured: three of
+# six live Hindi refusals stopped at ~565 bytes). This is a cap, not a spend
+# — turns that do not need the room are billed for what they actually emit.
+PLAN_MAX_OUTPUT_TOKENS = int(os.environ.get("PLAN_MAX_OUTPUT_TOKENS", "1200"))
