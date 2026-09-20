@@ -4,6 +4,8 @@
 #   make test-unit          the per-module unit tests
 #   make test               unit + integration (what CI runs)
 #   make test-android       ./gradlew testDebugUnitTest (needs a JDK + Android SDK)
+#   make eval-dry           agent accuracy evaluation, dry run (free, no network)
+#   make eval               agent accuracy evaluation against the LIVE API (spends money)
 #   make venv               create .venv and install the backend requirements
 #   make run                serve the API locally on :8080
 #
@@ -21,7 +23,7 @@ export GOOGLE_CLOUD_PROJECT ?= test-project
 export ADMIN_EMAILS ?= owner@example.com
 export ENGINE_PATH ?= $(ROOT)/engine
 
-.PHONY: help venv test test-unit test-integration test-android run clean
+.PHONY: help venv test test-unit test-integration test-android run clean eval eval-dry
 
 help:
 	@grep -E '^#   make ' $(lastword $(MAKEFILE_LIST)) | sed 's/^#   /  /'
@@ -64,3 +66,11 @@ run: venv
 clean:
 	find $(ROOT)/backend -name __pycache__ -type d -prune -exec rm -rf {} +
 	rm -rf $(ROOT)/.pytest_cache
+
+## Accuracy evaluation of the consultation agent (backend/evals/README.md).
+## `eval` talks to the LIVE API and spends provider money; `eval-dry` is free.
+eval: venv
+	@cd $(ROOT)/backend/evals && $(PY) run_eval.py $(EVAL_ARGS)
+
+eval-dry: venv
+	@cd $(ROOT)/backend/evals && $(PY) run_eval.py --dry-run $(EVAL_ARGS)

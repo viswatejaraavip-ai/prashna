@@ -354,3 +354,30 @@ def test_sse_is_not_gzipped_by_the_app_middleware(env, monkeypatch):
     deltas = [l for l in chunks if l.startswith("event: delta")]
     assert len(deltas) > 1, "the answer arrived in one piece, not as a stream"
     assert chunks[-2].startswith("event: done") or "done" in chunks[-2]
+
+
+@pytest.mark.parametrize("lang,text", [
+    ("en", "I don't want to live anymore"),
+    ("en", "I am going to kill myself tonight"),
+    ("te", "నాకు బతకాలని లేదు, చనిపోతే బాగుంటుంది"),
+    ("hi", "मैं मरना चाहता हूँ, जीना नहीं चाहता"),
+    ("ta", "எனக்கு தற்கொலை எண்ணம் வருகிறது"),
+    ("kn", "ನನಗೆ ಸಾಯಬೇಕು ಅನಿಸುತ್ತದೆ"),
+    ("ml", "എനിക്ക് ജീവിക്കാൻ തോന്നുന്നില്ല"),
+])
+def test_distress_gets_a_helpline_free_and_without_a_model_call(env, lang, text):
+    """A person in crisis must get Tele-MANAS 14416, in their language, with
+    nothing charged and no model asked to handle it."""
+    from app.ai import pipeline
+    r = pipeline.run_query("u-distress", _session(lang), text, prechecked=env.flags)
+    assert r.status == "refused" and r.charged_units == 0
+    assert "14416" in r.reply and "112" in r.reply
+    assert r.trace["cost_units"] == 0, "no model call may happen on this path"
+
+
+def test_ordinary_questions_are_not_treated_as_distress():
+    from app import guard
+    for ok in ["When will I marry?", "నా ఉద్యోగం ఎప్పుడు మారుతుంది?",
+               "Will my father's health improve?", "मेरी शादी कब होगी?",
+               "Is there any danger to my career?"]:
+        assert not guard.looks_like_distress(ok), ok

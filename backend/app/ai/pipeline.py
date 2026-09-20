@@ -180,6 +180,13 @@ def run_query(uid: str, session: Dict, text: str = "", *,
                       error="free_turn_cap")
             return _finish(uid, session, question, st, stages, b, t0, trace_id,
                            lang, mode, dry_run, plan, on_done)
+        # Crisis before anything else: a helpline, in their language, free.
+        if guard.looks_like_distress(question):
+            log.warning("distress message uid=%s (helpline returned)", uid)
+            st.update(status="refused", reply=guard.distress_message(lang),
+                      error="distress")
+            return _finish(uid, session, question, st, stages, b, t0, trace_id,
+                           lang, mode, dry_run, plan, on_done)
         if guard.obvious_off_topic(question):
             st.update(status="refused", reply=guard.refusal_for(lang),
                       error="prefilter_off_topic")
