@@ -83,9 +83,17 @@ class FakeGemini:
             name, text = "brief", ("- Lagna Virgo; 10th lord Mercury in 9th. " * 200)[:out * 4]
         elif "maintain memory" in system:
             name, out = "memory", (max_out if self.full else 260)
+            # Every fact carries the client's own words, and memory.grounded()
+            # checks they are really in the question — so the fake quotes the
+            # question it was actually given, as the real model must.
+            try:
+                asked = json.loads(contents).get("question") or ""
+            except ValueError:
+                asked = ""
             text = json.dumps({"summary": "Client asked about career; told 2027-28 "
                                           "is favourable (Jupiter-Saturn antar).",
-                               "facts": ["Works as a software engineer in Kochi"]})
+                               "facts": [{"fact": "Works as a software engineer in Kochi",
+                                          "said": asked}]})
         else:
             name, text, out = "other", "{}", 50
         self.calls.append({"name": name, "model": model, "prompt": prompt, "out": out,

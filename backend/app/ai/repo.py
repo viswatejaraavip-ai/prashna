@@ -118,16 +118,33 @@ def list_messages(sid: str, limit: int = 200) -> List[Dict]:
 
 # ---------------- long-term memory per profile ----------------
 
+# Facts written before memory.grounded() existed have no provenance: nothing
+# says whether the client stated them or the astrologer invented them, and in
+# practice many were the agent's own predictions and chart placements, read
+# back to the client as their own history (backend/evals/RESULTS.md). They are
+# therefore not used. The documents are left alone rather than deleted - the
+# next answered turn rewrites them, grounded this time.
+MEMORY_VERSION = 2
+
+
 def get_memory(uid: str, pid: str) -> List[str]:
     if not pid:
         return []
     snap = (_col("users").document(uid).collection("ai_memory").document(pid).get())
-    return list((snap.to_dict() or {}).get("facts") or []) if snap.exists else []
+    if not snap.exists:
+        return []
+    doc = snap.to_dict() or {}
+    if int(doc.get("v") or 1) < MEMORY_VERSION:
+        n = len(doc.get("facts") or [])
+        if n:
+            log.info("ignoring %d ungrounded memory fact(s) for profile %s", n, pid)
+        return []
+    return list(doc.get("facts") or [])
 
 
 def save_memory(uid: str, pid: str, facts: List[str]) -> None:
     (_col("users").document(uid).collection("ai_memory").document(pid)
-     .set({"facts": facts, "updated_at": store.now_iso()}))
+     .set({"facts": facts, "v": MEMORY_VERSION, "updated_at": store.now_iso()}))
 
 
 # ---------------- traces / rollups / balance ----------------
