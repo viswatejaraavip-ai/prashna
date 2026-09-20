@@ -230,6 +230,76 @@ def distress_message(lang: str) -> str:
     return _DISTRESS_MSG.get(lang, _DISTRESS_MSG["en"])
 
 
+# A medical emergency described to an astrologer. The evaluation
+# (backend/evals/RESULTS.md) sent three days of chest pain and breathlessness
+# with "which medicine, what dose"; the app refused to name a drug — correctly
+# — and then invited an astrology question, never once saying to see a doctor.
+# Refusing is not enough when the next hour matters.
+#
+# Deliberately narrow: ACUTE presentations only, never the word for "health"
+# or "illness". "What does my chart say about my health?" is an ordinary paid
+# question and must still be answered; so must a muhurta for a planned
+# operation. The cost of a false positive is one refused astrology question,
+# and of a false negative, somebody sitting at home with chest pain.
+_MEDICAL_URGENT = re.compile(
+    "|".join([
+        r"chest pain", r"pain in (my )?chest", r"tightness in (my )?chest",
+        r"can'?t breathe", r"cannot breathe", r"breathless",
+        r"short(ness)? of breath", r"trouble breathing",
+        r"heart attack", r"stroke", r"seizure", r"unconscious", r"fainted",
+        r"bleeding heavily", r"heavy bleeding", r"coughing blood",
+        r"vomiting blood", r"overdose", r"swallowed poison",
+        r"सीने में दर्द", r"छाती में दर्द", r"साँस नहीं आ", r"सांस नहीं आ",
+        r"साँस लेने में (तकलीफ|दिक्कत)", r"सांस लेने में (तकलीफ|दिक्कत)",
+        r"दिल का दौरा", r"बेहोश", r"लकवा", r"खून बह", r"खून की उल्टी",
+        r"ఛాతీ నొప్పి", r"గుండె నొప్పి", r"గుండెపోటు", r"ఊపిరి ఆడటం లేదు",
+        r"ఊపిరి ఆడడం లేదు", r"శ్వాస తీసుకోవడం కష్ట", r"స్పృహ తప్పి",
+        r"పక్షవాతం", r"రక్తస్రావం", r"రక్తం వాంతి",
+        r"நெஞ்சு வலி", r"மார்பு வலி", r"மாரடைப்பு", r"மூச்சு விட முடிய",
+        r"மூச்சுத் திணறல்", r"மயக்கம் போட்டு", r"பக்கவாதம்", r"ரத்தப்போக்கு",
+        r"ಎದೆ ನೋವು", r"ಹೃದಯಾಘಾತ", r"ಉಸಿರಾಟದ (ತೊಂದರೆ|ಕಷ್ಟ)",
+        r"ಉಸಿರಾಡಲು ಆಗುತ್ತಿಲ್ಲ", r"ಪ್ರಜ್ಞೆ ತಪ್ಪಿ", r"ಪಕ್ಷವಾತ", r"ರಕ್ತಸ್ರಾವ",
+        r"നെഞ്ച്?\s?വേദന", r"ഹൃദയാഘാത", r"ശ്വാസം മുട്ട", r"ശ്വാസം എടുക്കാൻ",
+        r"ബോധം കെട്ട", r"പക്ഷാഘാത", r"രക്തസ്രാവ",
+    ]), re.I)
+
+# 108 is the all-India ambulance number, 112 the emergency number.
+_MEDICAL_MSG = {
+    "en": ("\U0001F64F What you are describing needs a doctor now, not an astrologer. "
+           "I cannot name a medicine or a dose, and no chart should decide this.\n\n"
+           "**Ambulance: 108** · **Emergency: 112** — or go to the nearest hospital.\n\n"
+           "Once you have been seen, I am here for your astrology questions."),
+    "hi": ("\U0001F64F आप जो बता रहे हैं, उसके लिए अभी डॉक्टर चाहिए, ज्योतिषी नहीं। मैं कोई दवा या "
+           "खुराक नहीं बता सकता, और यह फैसला कुंडली से नहीं होना चाहिए।\n\n"
+           "**एम्बुलेंस: 108** · **आपातकाल: 112** — या नज़दीकी अस्पताल जाइए।\n\n"
+           "इलाज हो जाने के बाद, आपके ज्योतिष प्रश्नों के लिए मैं यहीं हूँ।"),
+    "te": ("\U0001F64F మీరు చెబుతున్నదానికి ఇప్పుడే వైద్యుడు కావాలి, జ్యోతిష్యుడు కాదు. నేను మందు "
+           "గానీ మోతాదు గానీ చెప్పలేను; ఇది జాతకంతో నిర్ణయించే విషయం కాదు.\n\n"
+           "**అంబులెన్స్: 108** · **అత్యవసరం: 112** — లేదా దగ్గరలోని ఆసుపత్రికి వెళ్లండి.\n\n"
+           "వైద్యం అయ్యాక, మీ జ్యోతిష్య ప్రశ్నలకు నేను ఇక్కడే ఉన్నాను."),
+    "ta": ("\U0001F64F நீங்கள் சொல்வதற்கு இப்போதே மருத்துவர் தேவை, ஜோதிடர் அல்ல. நான் மருந்தையோ "
+           "அளவையோ சொல்ல முடியாது; இதை ஜாதகம் முடிவு செய்யக் கூடாது.\n\n"
+           "**ஆம்புலன்ஸ்: 108** · **அவசரம்: 112** — அல்லது அருகிலுள்ள மருத்துவமனைக்குச் செல்லுங்கள்.\n\n"
+           "சிகிச்சை முடிந்ததும், உங்கள் ஜோதிட கேள்விகளுக்கு நான் இங்கே இருக்கிறேன்."),
+    "kn": ("\U0001F64F ನೀವು ಹೇಳುತ್ತಿರುವುದಕ್ಕೆ ಈಗಲೇ ವೈದ್ಯರು ಬೇಕು, ಜ್ಯೋತಿಷಿ ಅಲ್ಲ. ನಾನು ಔಷಧಿ "
+           "ಅಥವಾ ಪ್ರಮಾಣವನ್ನು ಹೇಳಲಾರೆ; ಇದನ್ನು ಜಾತಕ ನಿರ್ಧರಿಸಬಾರದು.\n\n"
+           "**ಆಂಬ್ಯುಲೆನ್ಸ್: 108** · **ತುರ್ತು: 112** — ಅಥವಾ ಹತ್ತಿರದ ಆಸ್ಪತ್ರೆಗೆ ಹೋಗಿ.\n\n"
+           "ಚಿಕಿತ್ಸೆ ಆದ ಮೇಲೆ, ನಿಮ್ಮ ಜ್ಯೋತಿಷ್ಯ ಪ್ರಶ್ನೆಗಳಿಗೆ ನಾನು ಇಲ್ಲೇ ಇದ್ದೇನೆ."),
+    "ml": ("\U0001F64F നിങ്ങൾ പറയുന്നതിന് ഇപ്പോൾത്തന്നെ ഡോക്ടറെ വേണം, ജ്യോതിഷിയെ അല്ല. മരുന്നോ "
+           "അളവോ പറയാൻ എനിക്കാവില്ല; ഇത് ജാതകം തീരുമാനിക്കേണ്ട കാര്യമല്ല.\n\n"
+           "**ആംബുലൻസ്: 108** · **അടിയന്തരം: 112** — അല്ലെങ്കിൽ അടുത്തുള്ള ആശുപത്രിയിൽ പോകുക.\n\n"
+           "ചികിത്സ കഴിഞ്ഞ ശേഷം, നിങ്ങളുടെ ജ്യോതിഷ ചോദ്യങ്ങൾക്കായി ഞാൻ ഇവിടെയുണ്ട്."),
+}
+
+
+def looks_like_medical_emergency(text: str) -> bool:
+    return bool(_MEDICAL_URGENT.search(text or ""))
+
+
+def medical_message(lang: str) -> str:
+    return _MEDICAL_MSG.get(lang, _MEDICAL_MSG["en"])
+
+
 _FREE_CAP = {
     "hi": "🙏 कृपया अपना ज्योतिष प्रश्न सीधे पूछिए — जैसे करियर, विवाह, धन या स्वास्थ्य के बारे में। "
           "मैं आपकी कुंडली देखकर उत्तर दूँगा।",

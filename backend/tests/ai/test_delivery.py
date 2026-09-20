@@ -528,3 +528,45 @@ def test_C_opus_delta_accumulation_survives_every_delta_boundary(env):
                                  max_tokens=500, on_delta=got.append)
         assert text == MIXED.strip(), "delta split at %d" % at
         assert "".join(got) == MIXED, "delta split at %d" % at
+
+
+# ---------------- English left in an Indic reply ----------------
+
+def test_a_divisional_chart_is_named_in_the_reply_language():
+    from app.ai import delivery
+    out = delivery.localize_jargon("కెరీర్ కోసం D-10 చూడండి, D9 కూడా.", "te")
+    assert "D-10" not in out and "D9" not in out
+    assert "10 వర్గ చక్రం" in out and "9 వర్గ చక్రం" in out
+
+
+def test_kp_becomes_the_reviewed_local_term():
+    from app.ai import delivery
+    from app.features import common
+    out = delivery.localize_jargon("KP పద్ధతి ప్రకారం.", "te")
+    assert "KP" not in out and common.t("te", "chart_kinds.kp") in out
+
+
+def test_an_english_reply_is_left_alone():
+    from app.ai import delivery
+    text = "Check D-10 and the KP sub lord."
+    assert delivery.localize_jargon(text, "en") == text
+    assert delivery.latin_leaks(text, "en") == []
+
+
+def test_the_leak_check_reports_what_is_left():
+    from app.ai import delivery
+    leaks = delivery.latin_leaks("ఈ జాతకంలో commitment ఉంది, SAV బలం to.", "te")
+    assert "commitment" in leaks and "SAV" in leaks
+    assert "to" in leaks
+
+
+def test_a_clean_indic_reply_reports_nothing():
+    from app.ai import delivery
+    assert delivery.latin_leaks("ఈ జాతకంలో 2017లో ఉద్యోగం మొదలైంది.", "te") == []
+
+
+def test_every_language_has_the_terms_the_substitution_needs():
+    from app.features import common
+    for lg in ("hi", "te", "ta", "kn", "ml", "en"):
+        assert common.t(lg, "chart_kinds.varga_one")
+        assert common.t(lg, "chart_kinds.kp")

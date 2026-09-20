@@ -20,7 +20,7 @@
 
 import os
 import re
-from typing import Callable, Optional
+from typing import Callable, Dict, List, Optional
 
 REPLACEMENT = "\ufffd"
 
@@ -146,3 +146,48 @@ def delivers_a_reading(reply: str, *, mode: str = "text") -> bool:
     if _DATED.search(text):
         return True
     return not asks_the_client_to_resend(text)
+
+
+# ---------------- English left in an Indic reply ----------------
+
+# reasoner.SYSTEM forbids Latin letters outside an English consultation, and
+# the evaluation still found "D-10", "KP", "SAV", "Birth Time Rectification",
+# "commitment" in Indic answers. A rule nothing checks is a rule that decays,
+# so the leak is measured on every turn and the two purely mechanical cases
+# are repaired.
+#
+# Only substitutions whose replacement is already a reviewed string are made
+# here: chart_kinds.kp and chart_kinds.varga_one come out of
+# app/features/i18n/*.json. Everything else is recorded, never machine-
+# translated mid-reply -- a wrong word inside a paid reading is worse than an
+# English one, and the trace makes the rest visible to whoever owns the prompt.
+_VARGA = re.compile(r"\bD[-– ]?(\d{1,2})\b")
+_KP = re.compile(r"\bK\.?\s?P\.?(?=[\s,.:;)\]]|$)")
+# A Latin run worth reporting: two or more letters. One letter is usually a
+# house or a list marker and is noise.
+_LATIN_RUN = re.compile(r"[A-Za-z][A-Za-z'’-]+")
+
+
+def localize_jargon(text: str, lang: str) -> str:
+    """Replace the mechanical English jargon with its reviewed local term."""
+    if not text or lang == "en":
+        return text
+    from ..features import common
+    try:
+        kp = common.t(lang, "chart_kinds.kp")
+        varga = common.t(lang, "chart_kinds.varga_one")
+    except (KeyError, OSError):          # missing language file: leave it be
+        return text
+    text = _VARGA.sub(lambda m: "%s %s" % (m.group(1), varga), text)
+    return _KP.sub(kp, text)
+
+
+def latin_leaks(text: str, lang: str) -> List[str]:
+    """Latin words still in a reply that should carry none, longest first."""
+    if not text or lang == "en":
+        return []
+    seen: Dict[str, int] = {}
+    for m in _LATIN_RUN.finditer(text):
+        w = m.group(0)
+        seen[w] = seen.get(w, 0) + 1
+    return sorted(seen, key=lambda w: (-len(w), w))[:12]

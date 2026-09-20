@@ -149,7 +149,7 @@ def run_query(uid: str, session: Dict, text: str = "", *,
     stages: List[llm.Stage] = []
     st = {"status": "error", "reply": "", "error": None, "charged": 0,
           "charge_error": None, "transcript": None, "audio": None,
-          "date_check": None}
+          "date_check": None, "latin_leaks": []}
 
     def add(stage: llm.Stage):
         stages.append(stage)
@@ -188,6 +188,14 @@ def run_query(uid: str, session: Dict, text: str = "", *,
             log.warning("distress message uid=%s (helpline returned)", uid)
             st.update(status="refused", reply=guard.distress_message(lang),
                       error="distress")
+            return _finish(uid, session, question, st, stages, b, t0, trace_id,
+                           lang, mode, dry_run, plan, on_done)
+        if guard.looks_like_medical_emergency(question):
+            # Same reasoning as distress, one rung down: refusing to prescribe
+            # is not enough when the person needs to be seen today.
+            log.warning("medical emergency uid=%s (referral returned)", uid)
+            st.update(status="refused", reply=guard.medical_message(lang),
+                      error="medical_emergency")
             return _finish(uid, session, question, st, stages, b, t0, trace_id,
                            lang, mode, dry_run, plan, on_done)
         if guard.obvious_off_topic(question):
@@ -253,20 +261,30 @@ def run_query(uid: str, session: Dict, text: str = "", *,
         # When the engine output is already small, Opus reads it directly and
         # the Flash brief is skipped: the reason floor must then be sized on
         # the real JSON rather than on a full-size brief.
+        # Where the planets are, handed over the same way and for the same
+        # reason: Flash's prose was the only route placements had to the
+        # astrologer, and answers kept contradicting the engine on them.
+        chart = executor.planet_table(results)
         skip_brief = executor.skips_brief(results)
-        facts_tokens = ((executor.raw_tokens(results) if skip_brief else brief_out)
-                        + costs_mod.estimate_tokens(ladder))
-        reason_reserve = _reason_floor(question, summary, facts, facts_tokens, mode, tts_tier)
-        # Abort only when even the *smallest* prompt reasoner.fit() would fall
-        # back to (no memory, no summary, a third of the brief) cannot afford a
-        # minimum answer. Measuring the abort against the full-context reserve
-        # instead turned a query that fit after shrinking into an outage.
-        reason_min = _reason_floor(question, summary, facts, facts_tokens, mode,
-                                   tts_tier, shrunk=True)
-        if b.remaining() < reason_min:   # misconfigured ceiling: stop before spending more
+        base_tokens = executor.raw_tokens(results) if skip_brief else brief_out
+
+        def floors(head_tokens: int) -> Tuple[float, float]:
+            t = base_tokens + head_tokens
+            return (_reason_floor(question, summary, facts, t, mode, tts_tier),
+                    _reason_floor(question, summary, facts, t, mode, tts_tier,
+                                  shrunk=True))
+
+        # Sized on the smallest prompt this query could end up sending: the
+        # verbatim blocks below are droppable, so their cost must not be what
+        # decides that the query is impossible before a single token is spent.
+        reason_reserve, reason_min = floors(
+            costs_mod.estimate_tokens(ladder) + costs_mod.estimate_tokens(chart))
+        _, floor_without_head = floors(0)
+        if b.remaining() < floor_without_head:
             st.update(status="error", reply=guard.error_message(lang),
                       error="budget: ceiling too low for a minimum answer "
-                            "(need %d paise, %d left)" % (reason_min, b.remaining()))
+                            "(need %d paise, %d left)"
+                            % (floor_without_head, b.remaining()))
             return _finish(uid, session, question, st, stages, b, t0, trace_id,
                            lang, mode, dry_run, plan, on_done)
         timeframe = plan.get("timeframe", "any")
@@ -279,24 +297,41 @@ def run_query(uid: str, session: Dict, text: str = "", *,
                 results, focus=plan["focus"], question=question, profile=profile,
                 max_out_tokens=brief_out, max_in_tokens=max_in,
                 today=clock.stamp(), timeframe=timeframe)
-        if ladder:
-            # First, not last: reasoner.fit() shrinks a brief that will not
-            # fit by cutting its tail, and for a "when did it happen"
-            # question the exact ladder is the part worth keeping.
-            brief = ladder + "\n\n" + brief.lstrip()
-            stage.detail = dict(stage.detail or {}, ladder_chars=len(ladder))
         add(stage)
 
         # ---- 3. reason (budget-capped) ----
-        fit = reasoner.fit(lang=lang, mode=mode, question=question, brief=brief,
-                           summary=summary, memory=facts, profile=profile,
-                           remaining_paise=b.remaining(), tts_tier=tts_tier,
-                           intent=plan.get("intent", ""))
+        # The verbatim blocks go FIRST, because reasoner.fit() shrinks an
+        # oversized brief by cutting its tail and the exact engine values are
+        # the part worth keeping — they are what Flash's summary gets wrong.
+        # Being first also means fit() can never trim them, so if the prompt
+        # still will not fit they are given up here, one at a time: the ladder
+        # before the rasi table (only a past-tense question needs the whole
+        # life), and both before giving the client an error. A reading built
+        # on the summary alone is worse; no reading at all is worse still.
+        body, fit, dropped = brief, None, ""
+        for drop in ("", "ladder", "chart"):
+            if drop == "ladder":
+                ladder, dropped = "", drop
+            elif drop == "chart":
+                chart, dropped = "", drop
+            head = "\n\n".join(x for x in (ladder, chart) if x)
+            brief = (head + "\n\n" + body.lstrip()) if head else body
+            fit = reasoner.fit(lang=lang, mode=mode, question=question, brief=brief,
+                               summary=summary, memory=facts, profile=profile,
+                               remaining_paise=b.remaining(), tts_tier=tts_tier,
+                               intent=plan.get("intent", ""))
+            if fit["fits"]:
+                break
         if not fit["fits"]:
             st.update(status="error", reply=guard.error_message(lang),
                       error="budget: cannot fit a minimum answer (cap %d)" % fit["max_tokens"])
             return _finish(uid, session, question, st, stages, b, t0, trace_id,
                            lang, mode, dry_run, plan, on_done)
+        if dropped:
+            log.warning("ceiling too tight for the %s block; dropped it (trace=%s)",
+                        dropped, trace_id)
+        stage.detail = dict(stage.detail or {}, ladder_chars=len(ladder),
+                            chart_chars=len(chart))
         # Corrupted characters (U+FFFD and the junk welded to them) are cut
         # out of the stream as it goes past, so the client never sees them.
         scrubber = delivery.Scrubber(lang, on_delta)
@@ -316,7 +351,14 @@ def run_query(uid: str, session: Dict, text: str = "", *,
         if clean != reply:
             log.warning("corrupted characters removed from a %s reply (trace=%s)",
                         lang, trace_id)
-        reply = clean
+        reply = delivery.localize_jargon(clean, lang)
+        # What is still in Latin letters after that is the prompt rule failing,
+        # not something this layer can safely rewrite. Counted so a regression
+        # shows up without re-running the evaluation.
+        st["latin_leaks"] = delivery.latin_leaks(reply, lang)
+        if st["latin_leaks"]:
+            log.warning("English left in a %s reply (trace=%s): %s",
+                        lang, trace_id, st["latin_leaks"][:6])
         if not reply or guard.leaks_system_prompt(reply):
             st.update(status="refused" if reply else "error",
                       reply=guard.refusal_for(lang) if reply else guard.error_message(lang),
@@ -470,6 +512,8 @@ def _finish(uid, session, question, st, stages, b, t0, trace_id, lang, mode,
         trace["charge_error"] = st["charge_error"]
     if st.get("date_check"):
         trace["date_check"] = st["date_check"]
+    if st.get("latin_leaks"):
+        trace["latin_leaks"] = st["latin_leaks"]
     if plan.get("timeframe"):
         trace["timeframe"] = plan["timeframe"]
     trace["budget"] = budget_mod.summary(b)
@@ -550,6 +594,8 @@ def _tail(uid, session, question, st, stages, b, trace, status, answered,
                 roll["voice_queries"] = 1
             if status == "over_ceiling":
                 roll["over_ceiling"] = 1
+            if st.get("latin_leaks"):
+                roll["latin_leaks"] = 1
             if st.get("date_check"):
                 # Answers that dated something outside the client's life. A
                 # daily count makes the accuracy defect visible without

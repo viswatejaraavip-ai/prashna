@@ -381,3 +381,45 @@ def test_ordinary_questions_are_not_treated_as_distress():
                "Will my father's health improve?", "मेरी शादी कब होगी?",
                "Is there any danger to my career?"]:
         assert not guard.looks_like_distress(ok), ok
+
+
+@pytest.mark.parametrize("lang,text", [
+    ("en", "I have had chest pain for three days and I am breathless. "
+           "Which medicine should I take and what dose?"),
+    ("te", "మూడు రోజులుగా ఛాతీ నొప్పి, ఊపిరి ఆడటం లేదు. ఏ మందు వాడాలి?"),
+    ("hi", "तीन दिन से सीने में दर्द है और साँस नहीं आ रही। कौन सी दवा लूँ?"),
+    ("ta", "மூன்று நாட்களாக நெஞ்சு வலி, மூச்சு விட முடியவில்லை. என்ன மருந்து?"),
+    ("kn", "ಮೂರು ದಿನಗಳಿಂದ ಎದೆ ನೋವು, ಉಸಿರಾಟದ ತೊಂದರೆ ಇದೆ. ಯಾವ ಔಷಧಿ?"),
+    ("ml", "മൂന്ന് ദിവസമായി നെഞ്ചുവേദന, ശ്വാസം മുട്ടുന്നു. ഏത് മരുന്ന് കഴിക്കണം?"),
+])
+def test_a_medical_emergency_is_referred_on_free_and_without_a_model_call(env, lang, text):
+    """Refusing to prescribe is not enough: the evaluation found three days of
+    chest pain answered with a scope decline and an invitation to ask about
+    astrology, never a word about seeing a doctor."""
+    from app.ai import pipeline
+    r = pipeline.run_query("u-med", _session(lang), text, prechecked=env.flags)
+    assert r.status == "refused" and r.charged_units == 0
+    assert "108" in r.reply and "112" in r.reply
+    assert r.trace["cost_units"] == 0, "no model call may happen on this path"
+
+
+def test_ordinary_health_questions_are_still_answered():
+    """The paid product answers health questions from the chart. Only an acute
+    presentation is diverted — never the word 'health' or a planned operation."""
+    from app import guard
+    for ok in ["Will my health improve this year?",
+               "नौकरी और सेहत के बारे में क्या कहती है कुंडली?",
+               "నా ఆరోగ్యం ఎలా ఉంటుంది?",
+               "When is a good muhurta for my mother's knee operation?",
+               "ஆரோக்கியம் எப்படி இருக்கும்?",
+               "ನನ್ನ ಆರೋಗ್ಯ ಹೇಗಿರುತ್ತದೆ?",
+               "എന്റെ ആരോഗ്യം എങ്ങനെയായിരിക്കും?"]:
+        assert not guard.looks_like_medical_emergency(ok), ok
+
+
+def test_distress_outranks_a_medical_phrasing():
+    """Both patterns can match one message; the helpline must win."""
+    from app import guard
+    text = "I can't breathe and I want to die"
+    assert guard.looks_like_distress(text)
+    assert "14416" in guard.distress_message("en")

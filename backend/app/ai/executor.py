@@ -225,6 +225,17 @@ LADDER_LABEL = "dasha_periods"
 LADDER_MAX_MAHADASHAS = 12
 
 
+def _period(ad: Dict, age) -> str:
+    """One sub-period, closed when the engine gives an end and open when it
+    does not — an empty "2015-04.." would read as data we do not have."""
+    start, end = str(ad.get("start") or "")[:7], str(ad.get("end") or "")[:7]
+    lord = ad.get("lord", "?")
+    if not end:
+        return "%s %s [%s]" % (lord, start, age(ad.get("start")))
+    return "%s %s..%s [%s..%s]" % (lord, start, end,
+                                   age(ad.get("start")), age(ad.get("end")))
+
+
 def life_ladder(raw_json: str, profile: Optional[Dict] = None) -> str:
     """One line per mahadasha, its antardashas inline, ages in brackets."""
     try:
@@ -256,10 +267,75 @@ def life_ladder(raw_json: str, profile: Optional[Dict] = None) -> str:
         start, end = str(md.get("start") or "")[:7], str(md.get("end") or "")[:7]
         head = "%s %s..%s [age %s..%s]" % (md.get("lord", "?"), start, end,
                                            age(md.get("start")), age(md.get("end")))
-        subs = ["%s %s [%s]" % (ad.get("lord", "?"), str(ad.get("start") or "")[:7],
-                                age(ad.get("start")))
-                for ad in (md.get("antardashas") or []) if isinstance(ad, dict)]
+        # Closed intervals, not just a start: given only starts, the model has
+        # to build each range out of the NEXT entry, and it was measured
+        # getting that wrong — "Rahu-Saturn 2014-02 to 2016-12" for a period
+        # the engine puts at 2009-11..2012-09, with this ladder in the same
+        # prompt (evals/defects.json). Copying is cheaper than arithmetic.
+        subs = [_period(ad, age) for ad in (md.get("antardashas") or [])
+                if isinstance(ad, dict)]
         lines.append(head + (": " + ", ".join(subs) if subs else ""))
+    return "\n".join(lines)
+
+
+# The same trick as the ladder, for the other half of the grounding defect.
+# Dasha periods now reach the astrologer verbatim, but WHERE THE PLANETS ARE
+# still only reached it inside Flash's prose summary of the engine JSON — and
+# the evaluation kept finding placements that contradict the engine (Mercury
+# put in the 2nd when it is in the 3rd, Mars in the 5th vs the 9th). A summary
+# is free to drop or blur a house number; this table cannot. ~450 characters
+# for a whole chart, so it is cheaper than the sentence Flash would spend
+# describing one planet.
+PLANET_ORDER = ("Sun", "Moon", "Mars", "Mercury", "Jupiter", "Venus", "Saturn",
+                "Rahu", "Ketu")
+
+
+def _rasi_of(val: Any) -> Optional[Dict]:
+    """The rasi block inside whatever tool output happens to carry one."""
+    if not isinstance(val, dict):
+        return None
+    if isinstance(val.get("planets"), dict) and val.get("ascendant"):
+        return val
+    inner = val.get("rasi")
+    if isinstance(inner, dict) and isinstance(inner.get("planets"), dict):
+        return inner
+    return None
+
+
+def planet_table(results: Dict[str, str]) -> str:
+    """One line per planet: sign, whole-sign house, nakshatra, retrograde."""
+    rasi = None
+    for raw in results.values():
+        try:
+            rasi = _rasi_of(json.loads(raw))
+        except ValueError:
+            continue
+        if rasi:
+            break
+    if not rasi:
+        return ""
+    asc = rasi.get("ascendant") or {}
+    lines = ["BIRTH CHART (rasi, sidereal Lahiri) — exact engine values. Every "
+             "sign and house you state must match this table; a placement that "
+             "is not here is not in this chart."]
+    if asc.get("sign"):
+        lines.append("Lagna: %s %s" % (asc["sign"], asc.get("dms") or ""))
+    planets = rasi["planets"]
+    ordered = [p for p in PLANET_ORDER if p in planets]
+    ordered += [p for p in planets if p not in PLANET_ORDER]
+    for name in ordered:
+        p = planets.get(name)
+        if not isinstance(p, dict):
+            continue
+        nak = p.get("nakshatra") or {}
+        bits = [str(p.get("sign") or "?")]
+        if p.get("house_whole_sign"):
+            bits.append("house %s" % p["house_whole_sign"])
+        if nak.get("name"):
+            bits.append("%s-%s" % (nak["name"], nak.get("pada", "?")))
+        if p.get("retrograde"):
+            bits.append("retrograde")
+        lines.append("%s: %s" % (name, ", ".join(bits)))
     return "\n".join(lines)
 
 
@@ -304,12 +380,13 @@ Mark every period you list as (past), (RUNNING NOW) or (upcoming) against
 throw out impossible windows, and cannot work it out from a brief that omits
 it. Give the running maha/antar/pratyantar first.
 
-When "Timeframe: past" is given, the client is asking WHEN something that has
-already happened happened. The astrologer is separately handed the complete
-vimshottari ladder for the whole life, so do NOT spend your budget repeating
-dasha periods: spend it on what only you can give — the houses, lords,
-occupants, aspects, varga and ashtakavarga strength of the life area asked
-about, and the other dasha systems' periods over the client's whole life.
+The astrologer is separately handed, verbatim, the rasi table (every planet's
+sign, whole-sign house and nakshatra, and the lagna) and, when the request
+says "Timeframe: past", the complete vimshottari ladder for the whole life.
+Do NOT spend your budget restating either. Spend it on what only you can give: lords and their
+dispositors, aspects and conjunctions, yogas, varga and ashtakavarga
+strength for the life area asked about, KP sub lords, the other dasha
+systems' periods across the whole life, and the relevant transits.
 
 Rules: facts only, no advice, no predictions. Never write a period, a date,
 a lord or a placement that is not in the raw JSON in front of you, and never
