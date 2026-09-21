@@ -40,3 +40,4 @@ backend/evals/golden_set.local.json
 backend/evals/out/
 backend/evals/out-dry/
 backend/evals/RESULTS.local.md
+backend/static/*.apk
