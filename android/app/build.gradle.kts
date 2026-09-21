@@ -50,6 +50,11 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // WhatsApp support number placeholder (digits only, with country code).
         buildConfigField("String", "SUPPORT_WHATSAPP", "\"919000000000\"")
+        // AGPL section 13: the app shows this to users in Settings.
+        // A fork that changes the code must point it at its own repo.
+        buildConfigField("String", "SOURCE_URL",
+            "\"" + (project.findProperty("sourceUrl") as String?
+                ?: "https://github.com/viswatejaraavip-ai/prashna") + "\"")
     }
 
     signingConfigs {

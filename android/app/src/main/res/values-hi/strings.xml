@@ -483,4 +483,5 @@
     <string name="account_delete_body">इससे आपका खाता बंद हो जाएगा। आपकी प्रोफ़ाइल, बातचीत और रिपोर्ट 30 दिनों के बाद हमेशा के लिए मिटा दी जाएँगी। वॉलेट में बची राशि वापस नहीं मिल सकेगी।</string>
     <string name="account_delete_understand">मैं समझता/समझती हूँ, मेरा खाता मिटाएँ</string>
     <string name="action_change">बदलें</string>
+    <string name="settings_source">स्रोत कोड</string>
 </resources>

@@ -483,4 +483,5 @@
     <string name="account_delete_body">దీనితో మీ ఖాతా మూసివేయబడుతుంది. మీ ప్రొఫైల్‌లు, సంభాషణలు మరియు రిపోర్టులు 30 రోజుల తర్వాత శాశ్వతంగా తొలగించబడతాయి. వాలెట్‌లో మిగిలిన బ్యాలెన్స్ తిరిగి పొందలేరు.</string>
     <string name="account_delete_understand">నాకు అర్థమైంది, నా ఖాతా తొలగించండి</string>
     <string name="action_change">మార్చండి</string>
+    <string name="settings_source">సోర్స్ కోడ్</string>
 </resources>

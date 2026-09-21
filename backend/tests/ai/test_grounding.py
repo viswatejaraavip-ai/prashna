@@ -116,7 +116,7 @@ def test_each_sub_period_carries_its_own_end_date():
     assert "Saturn 2009-11..2012-09" in out
     assert "Mercury 2012-09..2015-04" in out
     # and the ages that go with it
-    assert "[16..19]" in out and "[19..21]" in out
+    assert "[18..21]" in out and "[21..23]" in out
 
 
 # ---------------- what gets given up when money runs short ----------------

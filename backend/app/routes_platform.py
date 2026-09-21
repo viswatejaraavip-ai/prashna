@@ -76,7 +76,9 @@ def get_me(request: Request, uid: str = Depends(store.current_uid)):
     user = _user_or_404(uid)
     # The app reads its prices from here, and the report price is per language.
     return {"user": platform_auth.public_user(user),
-            "pricing": platform_wallet.pricing(store.lang_of(request, user))}
+            "pricing": platform_wallet.pricing(store.lang_of(request, user)),
+            # AGPL section 13: every user of this service is offered its source.
+            "source_url": store.SOURCE_URL}
 
 
 class NotifPrefs(BaseModel):

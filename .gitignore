@@ -33,3 +33,10 @@ android/.kotlin/
 # App binary served from the site but not committed
 backend/static/udhyath.apk
 backend/.env.dev
+
+# Evaluation: real people's charts and the readings about their lives.
+# The public golden set holds only public figures; supply your own here.
+backend/evals/golden_set.local.json
+backend/evals/out/
+backend/evals/out-dry/
+backend/evals/RESULTS.local.md

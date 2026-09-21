@@ -1,6 +1,7 @@
 package com.udhyath.app
 
 import android.content.Intent
+import android.net.Uri
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -12,6 +13,7 @@ import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Gavel
 import androidx.compose.material.icons.filled.Groups
@@ -133,6 +135,14 @@ fun MoreScreen(nav: NavHostController) {
             NavRow(Icons.Default.Policy, stringResource(R.string.legal_privacy)) { nav.navigate("legal/privacy") }
             NavRow(Icons.Default.Receipt, stringResource(R.string.legal_refund)) { nav.navigate("legal/refund") }
             NavRow(Icons.Default.Policy, stringResource(R.string.disclaimer_title)) { nav.navigate("legal/disclaimer") }
+            // AGPL section 13: this app talks to a service running AGPL code,
+            // so its source must be offered to every user, visibly -- not only
+            // to whoever thinks to ask for it.
+            NavRow(Icons.Default.Code, stringResource(R.string.settings_source)) {
+                runCatching {
+                    ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(BuildConfig.SOURCE_URL)))
+                }
+            }
         }
         SectionCard(title = stringResource(R.string.settings_privacy)) {
             NavRow(Icons.Default.Download, stringResource(R.string.account_export)) { nav.navigate(Routes.ACCOUNT) }

@@ -29,6 +29,14 @@ BRAND = {"hi": "प्रश्न", "te": "ప్రశ్న", "ta": "பி�
 def brand(lang: str) -> str:
     return BRAND.get(lang, BRAND["en"])
 DEFAULT_LANG = os.environ.get("DEFAULT_LANG", "te")
+
+# This service runs AGPL-licensed software (our own code and, through
+# pyswisseph, the Swiss Ephemeris), so section 13 obliges us to offer its
+# complete source to everyone who uses it over the network -- not on request,
+# prominently. It is returned by /api/me and shown in the app's settings, and
+# a deployer who changes the code MUST point this at their own repository.
+SOURCE_URL = os.environ.get("SOURCE_URL", "https://github.com/viswatejaraavip-ai/prashna")
+
 IST = timezone(timedelta(hours=5, minutes=30))
 
 _fs = None

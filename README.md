@@ -1,131 +1,137 @@
-# Udhyath
+# Prashna
 
-A full-stack Vedic astrology platform with four products:
+A Vedic astrology consultation app for India, in six languages — Hindi,
+Telugu, Tamil, Kannada, Malayalam and English. An Android client, a FastAPI
+backend on Google Cloud, and a Jyotish engine on Swiss Ephemeris.
 
-| Product | Model | Status |
-|---|---|---|
-| **Web charts** (rasi, 16 vargas, KP, Ashtakavarga, bhava, 4 dashas, panchanga) | Free, no account | Production |
-| **REST API** (`/v1/*` via API Gateway, `udh_` tokens) | Pay per call from prepaid wallet | Production |
-| **MCP server** (11 tools, stdio + Streamable HTTP) | Same token, pay per call | Production |
-| **AI Agent** (chat astrologer on Claude/Bedrock) | Prepaid sessions + metered usage | Experimental |
+The astrologer is an agent: Gemini Flash plans which engine tools to run and
+condenses their output, Claude Opus writes the reading, and the chart facts
+are computed deterministically in-process — never by a language model. A hard
+per-query cost ceiling is enforced *before* the expensive call, not measured
+afterwards.
 
-Components:
+**Everything here is AGPL-3.0.** You may run your own instance, change it,
+and charge for it. If you do run it as a network service, section 13 obliges
+you to offer your users the source of what you are actually running — set
+`SOURCE_URL` to your own repository.
 
-- **`engine/`** — Jyotish calculation engine on Swiss Ephemeris (`pyswisseph`):
-  sidereal positions (Lahiri/Raman/KP), rasi chart, **all 16 Shodasavarga
-  divisional charts** (D1…D60 incl. Navamsa, Hora, Drekkana, Dasamsa,
-  Trimsamsa, Shashtiamsa), **bhava chalit** (Sripati), nakshatras + padas,
-  **Vimshottari dasha** (maha/antar/pratyantar), panchanga, transits.
-- **`mcp_server/`** — MCP server exposing the engine as tools (stdio for
-  Claude Desktop/Code, Streamable HTTP for remote agents on AWS).
-- **`backend/`** — FastAPI web app: JWT auth, **prepaid INR wallet billing**
-  (Razorpay), chat sessions with a **Claude Opus 4.8 agent** (served from
-  **Amazon Bedrock**, auth via IAM — no Anthropic API key) that calls the
-  engine through tool use, plus a direct chart-viewer API.
-- **`backend/static/`** — Web frontend: chat UI, wallet top-up, South Indian
-  chart renderer.
+---
 
-Verified against the India independence chart (15 Aug 1947 00:00 IST, Delhi):
-Taurus lagna 7°43', Moon in Pushya, Saturn mahadasha balance 18.07y. ✓
+## Why it is open
 
-## Billing model (prepay, minimum profit per session)
+The engine depends on the Swiss Ephemeris (via `pyswisseph`), which is dual
+licensed: AGPL, or a paid professional licence from Astrodienst. Because the
+backend imports the engine in-process, the whole service is one combined
+work — there is no arrangement where the engine is open and the pipeline is
+not. Rather than buy the way out, this project takes the AGPL side: the whole
+thing is public, and anyone who would rather not pay for the hosted instance
+can run their own.
 
-1. Users prepay into an INR wallet (Razorpay Checkout: UPI, cards,
-   netbanking, wallets).
-2. Starting a chat session charges a flat **session fee**
-   (`SESSION_FEE_UNITS`, default ₹50) — your guaranteed minimum profit.
-3. Every agent reply charges
-   `Anthropic USD token cost × USD_TO_WALLET_RATE × BILLING_MARGIN`
-   (defaults: ₹90/USD, 1.25 → 25% gross margin on usage).
-4. Messages are refused when the balance is too low; the user tops up and
-   continues. Every charge is itemised per message in the UI.
+The hosted instance is priced at the cost of running it plus a small margin
+for operations. Self-hosting is not a second-class path; it is the point.
 
-Profit per session = session fee + (margin − 1) × token cost. Tune all three
-knobs via env vars without code changes.
+## Layout
 
-Payment flow: backend creates a Razorpay **Order** → frontend opens Razorpay
-Checkout → on success the frontend calls `/api/billing/verify` (signature
-verified server-side) → wallet credited. A `payment.captured` **webhook** acts
-as the server-to-server backup so credits are never lost if the user closes
-the tab mid-payment.
-
-## Quick start (local)
-
-```bash
-python3.12 -m venv .venv && source .venv/bin/activate   # 3.10+ required for MCP
-pip install -r backend/requirements.txt
-
-export JWT_SECRET=$(openssl rand -hex 32)
-# Inference defaults to Claude in Amazon Bedrock — make sure your shell has
-# AWS credentials (aws configure / SSO) with bedrock:InvokeModel rights and
-# Anthropic model access enabled in your AWS_REGION.
-export AWS_REGION=us-east-1
-# Or use the first-party API instead:
-#   export INFERENCE_PROVIDER=anthropic ANTHROPIC_API_KEY=sk-ant-...
-# Leave RAZORPAY_KEY_ID unset -> the UI's "Add funds" uses a dev top-up.
-
-cd backend && uvicorn app.main:app --reload
-# open http://localhost:8000
-```
-
-Engine-only test (works on Python 3.9+):
-
-```bash
-pip install pyswisseph
-python engine/tests/test_engine.py
-```
-
-MCP server for Claude Desktop / Claude Code (stdio):
-
-```bash
-pip install -r mcp_server/requirements.txt
-python mcp_server/server.py
-```
-
-## Docker / production
-
-```bash
-cp .env.example .env   # fill in keys
-docker compose up --build
-# web on :8000, MCP (HTTP) on :8100, Postgres included
-```
-
-AWS deployment: **[deploy/DEPLOY.md](deploy/DEPLOY.md)** — full
-Infrastructure-as-Code with Terraform (`deploy/terraform/`): App Runner + ECR
-+ DynamoDB + Secrets Manager + IAM (Bedrock) + API Gateway + Route 53.
-Manual console walkthrough alternative: [deploy/aws.md](deploy/aws.md).
-
-## API summary
-
-| Endpoint | Purpose |
+| Path | What it is |
 |---|---|
-| `POST /api/auth/register` / `login` | JWT auth |
-| `GET /api/me` | email, balance, saved birth details |
-| `GET /api/pricing` | session fee, per-Mtok user rates, top-up options |
-| `POST /api/billing/order` | create Razorpay Order for a top-up |
-| `POST /api/billing/verify` | verify Checkout signature, credit wallet |
-| `POST /api/billing/webhook` | Razorpay `payment.captured` webhook (backup) |
-| `POST /api/billing/dev-topup` | dev-only top-up (when Razorpay unset) |
-| `POST /api/sessions` | start chat session (charges session fee) |
-| `POST /api/sessions/{id}/messages` | send message → agent reply + charge |
-| `POST /api/astrology/chart` | direct chart compute for the viewer |
+| `engine/jyotish/` | The calculation engine: sidereal positions (Lahiri), rasi, all 16 divisional charts, bhava chalit, nakshatras, four dasha systems, KP, Ashtakavarga, Shadbala, panchanga, transits, muhurta, matching |
+| `backend/app/ai/` | The agent: `planner` (Flash) → `executor` (engine tools + facts brief) → `reasoner` (Opus) → `memory`, with `budget` enforcing the ceiling and `delivery`/`dates` checking what comes back |
+| `backend/app/` | The product: auth, wallet, profiles, reports, astrologer features, admin |
+| `backend/evals/` | Accuracy evaluation against charts with known outcomes — see below |
+| `android/` | Kotlin/Compose client, per-app locales, Play Billing |
+| `deploy/gcp/terraform/` | The whole cloud footprint as code |
+| `docs/launch/` | Contract, deployment, testing and benchmark notes |
 
-MCP tools: `birth_chart`, `varga_chart`, `all_varga_charts`,
-`bhava_chalit_chart`, `dasha_periods`, `current_dasha`, `birth_panchanga`,
-`transits`.
+The engine is verified against the India independence chart (15 Aug 1947
+00:00 IST, Delhi): Taurus lagna 7°43', Moon in Pushya, Saturn mahadasha
+balance 18.07y.
 
-## Accuracy notes
+## How the agent works, and what it costs
 
-- Default ephemeris is the built-in Moshier model (< 1″ error for planets —
-  more than enough for varga boundaries). For maximum precision download the
-  Swiss Ephemeris data files and set `SE_EPHE_PATH`.
-- Rahu uses the **mean node** (standard in most Vedic software); switch to
-  `swe.TRUE_NODE` in `engine/jyotish/ephemeris.py` if you prefer.
-- Ayanamsas supported: `lahiri` (default), `raman`, `kp`, `fagan_bradley`,
-  `yukteshwar`.
+One question runs: plan (Flash) → engine tools (in-process, free) → facts
+brief (Flash) → reading (Opus) → memory update (Flash). The client's whole
+dasha ladder and the rasi table are handed to Opus **verbatim**, formatted in
+Python, because a summary of a ninety-year timeline is either wrong or the
+whole brief.
 
-## Roadmap ideas
+Measured on the live service: **₹3.1–4.1 of provider cost per query**,
+against a ₹5.00 ceiling that `budget.py` enforces by shrinking context — and,
+if it still will not fit, by dropping the verbatim blocks rather than
+returning an error.
 
-- Ashtakavarga (BAV/SAV), Shadbala, classical yogas
-- Streaming agent replies (SSE) and session summaries
-- Geocoding lookup for place names (the agent currently resolves cities itself)
+## Honest state of the accuracy
+
+`backend/evals/` asks the deployed service real questions about charts whose
+outcomes are already known, and scores how close the dated windows came. The
+judge model never sees the true date; the hit/miss decision is made in Python.
+
+On the published golden set — public figures, so **every birth time is
+unverified** — it dates events within ±1 year about 14% of the time. An
+uncertain birth time moves the lagna, the houses and every dasha boundary, so
+treat that as a floor rather than a measurement of the method. On a private
+run of two charts with known birth times it was 6 of 7, but seven questions
+is far too small to quote as a result. Supply your own known charts in
+`evals/golden_set.local.json` (gitignored) to measure it properly.
+
+`evals/RESULTS.md` carries the full numbers and a defect list saying which
+problems are fixed and which are still open. It is not a marketing document.
+
+## Running your own
+
+You need a Google Cloud project with billing, an Anthropic API key, a Gemini
+API key, and a Firebase project for phone/Google sign-in.
+
+```bash
+git clone https://github.com/viswatejaraavip-ai/prashna
+cd prashna
+make venv && make test          # 550 tests, no cloud credentials needed
+
+cd deploy/gcp/terraform
+cp terraform.tfvars.example terraform.tfvars   # add your keys and project
+terraform init && terraform apply              # ~70 resources
+```
+
+Then build the Android client against your own backend:
+
+```bash
+cd android
+./gradlew assembleDebug -PapiBase=https://your-service.run.app \
+                        -PsourceUrl=https://github.com/you/your-fork
+```
+
+`docs/launch/DEPLOY_GCP.md` has the detail, including the Firebase console
+steps that terraform cannot do for you. Nothing in this repository contains
+credentials; `terraform.tfvars` and the Android signing keystore are
+gitignored and must be yours.
+
+**Costs to expect:** the provider cost per query above, plus Cloud Run,
+Firestore and Cloud Storage. Cloud Run scales to zero, so an idle instance
+costs almost nothing; `min_instances = 1` removes cold starts at roughly
+₹9,200/month.
+
+## Testing
+
+```bash
+make test-unit          # per-module unit tests
+make test-integration   # every user flow end to end, in-memory Firestore, fake models
+make test               # both — what CI runs
+make eval-dry           # the accuracy harness, free, no network
+make eval               # the real evaluation against a live instance (spends money)
+```
+
+Integration tests run the real app against an in-memory Firestore and fake
+model clients, so the whole suite is offline and takes about forty seconds.
+
+## Name and branding
+
+The code is AGPL. The name **Prashna**, the logo and the store listing are
+not — they are not covered by the code licence and are not granted with it.
+Run your own instance under your own name. This is the usual arrangement for
+AGPL applications, and it exists so that a fork cannot ship something broken
+under a name users already trust.
+
+## Astrology, honestly
+
+Astrology shows tendencies. The app says so to its users, refuses medical,
+legal and financial guarantees, and routes a person in distress to Tele-MANAS
+(14416) before any model is called. If you fork it, please keep that.

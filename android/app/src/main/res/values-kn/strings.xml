@@ -484,4 +484,5 @@
     <string name="account_delete_body">ಇದರಿಂದ ನಿಮ್ಮ ಖಾತೆ ಮುಚ್ಚಲ್ಪಡುತ್ತದೆ. ನಿಮ್ಮ ಪ್ರೊಫೈಲ್‌ಗಳು, ಸಂಭಾಷಣೆಗಳು ಮತ್ತು ವರದಿಗಳು 30 ದಿನಗಳ ನಂತರ ಶಾಶ್ವತವಾಗಿ ಅಳಿಸಲ್ಪಡುತ್ತವೆ. ವಾಲೆಟ್‌ನಲ್ಲಿ ಉಳಿದಿರುವ ಹಣವನ್ನು ಮರಳಿ ಪಡೆಯಲು ಸಾಧ್ಯವಿಲ್ಲ.</string>
     <string name="account_delete_understand">ನನಗೆ ಅರ್ಥವಾಗಿದೆ, ನನ್ನ ಖಾತೆ ಅಳಿಸಿ</string>
     <string name="action_change">ಬದಲಿಸಿ</string>
+    <string name="settings_source">ಮೂಲ ಕೋಡ್</string>
 </resources>

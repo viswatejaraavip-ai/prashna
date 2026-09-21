@@ -484,4 +484,5 @@
     <string name="account_delete_body">ഇത് താങ്കളുടെ അക്കൗണ്ട് അടയ്ക്കും. താങ്കളുടെ പ്രൊഫൈലുകൾ, സംഭാഷണങ്ങൾ, റിപ്പോർട്ടുകൾ എന്നിവ 30 ദിവസത്തിന് ശേഷം സ്ഥിരമായി മായ്ക്കും. ബാക്കിയുള്ള വാലറ്റ് ബാലൻസ് തിരികെ ലഭിക്കില്ല.</string>
     <string name="account_delete_understand">എനിക്ക് മനസ്സിലായി, എന്റെ അക്കൗണ്ട് ഇല്ലാതാക്കുക</string>
     <string name="action_change">മാറ്റുക</string>
+    <string name="settings_source">സോഴ്‌സ് കോഡ്</string>
 </resources>

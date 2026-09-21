@@ -69,11 +69,11 @@ def _brief_call(gem):
 
 def test_age_arithmetic_is_the_one_a_person_uses(frozen):
     from app.ai import dates
-    born = date(1993, 5, 22)
-    assert dates.age_on(born, date(2026, 9, 20)) == 33
-    assert dates.age_on(born, date(2026, 5, 21)) == 32     # birthday not reached
-    assert dates.age_on(born, date(2026, 5, 22)) == 33
-    assert dates.age_today(_profile()) == 33
+    born = date(1991, 8, 14)
+    assert dates.age_on(born, date(2026, 9, 20)) == 35
+    assert dates.age_on(born, date(2026, 8, 13)) == 34     # birthday not reached
+    assert dates.age_on(born, date(2026, 8, 14)) == 35
+    assert dates.age_today(_profile()) == 35
 
 
 def test_reasoner_is_given_the_birth_date_and_the_age_today(frozen):
@@ -83,7 +83,7 @@ def test_reasoner_is_given_the_birth_date_and_the_age_today(frozen):
                         brief="- Lagna Virgo.", summary="", memory=[],
                         profile=_profile(), remaining_paise=400.0, tts_tier=None)
     user = plan["messages"][0]["content"]
-    assert "Client born: 22 May 1993 (1991-08-14); age today 33." in user
+    assert "Client born: 14 August 1991 (1991-08-14); age today 35." in user
     # ...right next to "Now:", because the pair is what makes an age computable.
     assert user.index("Client born:") < user.index("Answer language:")
     assert user.startswith("Now: ")
@@ -165,7 +165,7 @@ def test_past_pruning_keeps_the_period_the_question_is_about(frozen):
 
 
 def test_the_real_engine_gives_a_past_question_the_antardasha_it_needs(frozen):
-    """End to end on the evaluation's own chart (22 May 1993, Hyderabad): the
+    """End to end on the evaluation's own chart (14 August 1991, Hyderabad): the
     answer to "when did my career start" is inside Rahu-Venus 2016-04 ..
     2019-04, and nothing but the whole ladder contains it."""
     import json
@@ -202,8 +202,8 @@ def test_the_ladder_is_handed_over_verbatim_with_ages(frozen):
            ' "antardashas":[{"lord":"Ketu","start":"2015-04-01"},'
            '                {"lord":"Venus","start":"2016-04-01"}]}]}')
     out = executor.life_ladder(raw, _profile())
-    assert "Rahu 2004-10..2022-10 [age 11..29]" in out
-    assert "Ketu 2015-04 [21]" in out and "Venus 2016-04 [22]" in out
+    assert "Rahu 2004-10..2022-10 [age 13..31]" in out
+    assert "Ketu 2015-04 [23]" in out and "Venus 2016-04 [24]" in out
     # and it says what its own silence means, so a gap is not filled in
     assert "no period for" in out
     assert executor.life_ladder("not json", _profile()) == ""

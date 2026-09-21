@@ -31,7 +31,9 @@ def test_phone_signup_creates_user_and_grants_trial(api):
 
     me = api.client.get("/api/me", headers=h)
     assert me.status_code == 200
-    assert set(me.json()) == {"user", "pricing"}
+    # source_url is the AGPL section 13 offer, shown in the app settings.
+    assert set(me.json()) == {"user", "pricing", "source_url"}
+    assert me.json()["source_url"].startswith("https://")
     assert me.json()["user"]["uid"] == "u-phone"
 
 

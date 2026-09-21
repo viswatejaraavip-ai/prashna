@@ -484,4 +484,5 @@
     <string name="account_delete_body">இது உங்கள் கணக்கை மூடிவிடும். உங்கள் சுயவிவரங்கள், உரையாடல்கள் மற்றும் அறிக்கைகள் 30 நாட்களுக்குப் பிறகு நிரந்தரமாக அழிக்கப்படும். மீதமுள்ள வாலட் இருப்பைத் திரும்பப் பெற முடியாது.</string>
     <string name="account_delete_understand">புரிந்துகொண்டேன், என் கணக்கை நீக்கு</string>
     <string name="action_change">மாற்று</string>
+    <string name="settings_source">மூலக் குறியீடு</string>
 </resources>

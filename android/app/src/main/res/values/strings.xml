@@ -490,4 +490,5 @@
     <string name="account_delete_body">This will close your account. Your profiles, conversations and reports will be permanently erased after 30 days. Any remaining wallet balance cannot be recovered.</string>
     <string name="account_delete_understand">I understand, delete my account</string>
     <string name="action_change">Change</string>
+    <string name="settings_source">Source code</string>
 </resources>
