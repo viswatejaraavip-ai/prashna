@@ -1,0 +1,29 @@
+{
+  "_comment": [
+    "Human review of what the automatic checkers flagged. Two detectors flag",
+    "chart-groundedness problems and neither is trustworthy on its own, so every",
+    "flag was read against the engine's own chart output and recorded here.",
+    "`reviewed_by` is the engineer who ran the evaluation; the raw text of every",
+    "flagged claim is in out/scores.jsonl, so this table can be re-checked.",
+    "Add an entry with \"real\": false to strike a false positive off the report."
+  ],
+  "reviewed_by": "evaluation run of 2026-09-20",
+  "deterministic_flags": [
+    {"id": "msd__first_child", "claim": "Venus mahadasha 2018-2020",
+     "real": true,
+     "note": "Engine: Venus mahadasha runs 2079-2099. 2018-2020 was Rahu. Invented period."},
+    {"id": "ab__career_breakout", "claim": "Venus mahadasha began around 1958",
+     "real": true,
+     "note": "Engine: Venus mahadasha 2018-01 to 2038-01. Off by sixty years; hedged with 'may have', but stated as the basis of the timing."}
+  ],
+  "judge_contradiction_flags": {
+    "_comment": "The judge flags any sentence it reads as contradicting the engine facts it was given. Reviewed one by one.",
+    "real": ["owner__marriage", "st__marriage", "st__first_child",
+             "msd__first_child", "vk__marriage", "ab__career_breakout",
+             "ab__marriage", "ab__first_child", "ab__major_event",
+             "ig__first_child", "ig__career_breakout", "ig__major_event",
+             "nm__career_breakout"],
+    "not_real": ["msd__marriage", "msd__major_event", "nm__major_event"],
+    "not_real_reason": "The judge flagged the agent's own honest disclaimer that the lagna and the dasha start dates are uncertain because the birth time is unknown. That is correct behaviour, not a contradiction."
+  }
+}

@@ -1,0 +1,278 @@
+{
+  "_comment": [
+    "Golden set for the Prashna accuracy evaluation.",
+    "Every chart below has life events with dates that are public record or",
+    "supplied by the chart's owner. `time_confidence` is the honest rating of",
+    "the BIRTH TIME only (the birth DATE and PLACE are certain for all of",
+    "them). Charts whose time is not certain are created with time_known=false",
+    "so the engine marks lagna-dependent output approximate.",
+    "Profile names are deliberately anonymous ('Client B'): the reasoning model",
+    "is shown the profile name, and a famous name in it would hand the model",
+    "the answer from its own training data."
+  ],
+  "today": "2026-09-20",
+  "charts": [
+    {
+      "id": "st",
+      "profile_name": "Client C",
+      "relation": "other",
+      "gender": "male",
+      "lang": "hi",
+      "birth": {
+        "date": "1973-04-24",
+        "time": "12:00",
+        "place": "Mumbai"
+      },
+      "time_known": false,
+      "time_confidence": "none",
+      "identity": "Sachin Tendulkar",
+      "source": "Birth date/place: Wikipedia, universally reported. Birth TIME is not established (astrology sites disagree); created with time_known=false, engine assumes noon.",
+      "events": [
+        {
+          "key": "career_breakout",
+          "true_date": "1989-11-15",
+          "precision": "year",
+          "label": "International debut (Test, Karachi)",
+          "tense": "past"
+        },
+        {
+          "key": "marriage",
+          "true_date": "1995-05-24",
+          "precision": "month",
+          "label": "Marriage to Anjali",
+          "tense": "past"
+        },
+        {
+          "key": "first_child",
+          "true_date": "1997-10-12",
+          "precision": "year",
+          "label": "First child (Sara) born",
+          "tense": "past"
+        },
+        {
+          "key": "major_event",
+          "true_date": "2013-11-16",
+          "precision": "year",
+          "label": "Retirement from all cricket",
+          "tense": "past"
+        }
+      ]
+    },
+    {
+      "id": "vk",
+      "profile_name": "Client D",
+      "relation": "other",
+      "gender": "male",
+      "lang": "ta",
+      "birth": {
+        "date": "1988-11-05",
+        "time": "12:00",
+        "place": "Delhi"
+      },
+      "time_known": false,
+      "time_confidence": "none",
+      "identity": "Virat Kohli",
+      "source": "Birth date/place: Wikipedia. Birth TIME widely quoted as 10:13 but unsourced; created with time_known=false.",
+      "events": [
+        {
+          "key": "career_breakout",
+          "true_date": "2008-08-18",
+          "precision": "year",
+          "label": "International (ODI) debut",
+          "tense": "past"
+        },
+        {
+          "key": "marriage",
+          "true_date": "2017-12-11",
+          "precision": "month",
+          "label": "Marriage to Anushka Sharma",
+          "tense": "past"
+        },
+        {
+          "key": "first_child",
+          "true_date": "2021-01-11",
+          "precision": "year",
+          "label": "First child (Vamika) born",
+          "tense": "past"
+        },
+        {
+          "key": "major_event",
+          "true_date": "2024-06-29",
+          "precision": "year",
+          "label": "T20 World Cup win / retirement from T20Is",
+          "tense": "past"
+        }
+      ]
+    },
+    {
+      "id": "msd",
+      "profile_name": "Client E",
+      "relation": "other",
+      "gender": "male",
+      "lang": "kn",
+      "birth": {
+        "date": "1981-07-07",
+        "time": "12:00",
+        "place": "Ranchi"
+      },
+      "time_known": false,
+      "time_confidence": "none",
+      "identity": "M. S. Dhoni",
+      "source": "Birth date/place: Wikipedia. Birth TIME not established; time_known=false.",
+      "events": [
+        {
+          "key": "career_breakout",
+          "true_date": "2004-12-23",
+          "precision": "year",
+          "label": "International (ODI) debut",
+          "tense": "past"
+        },
+        {
+          "key": "marriage",
+          "true_date": "2010-07-04",
+          "precision": "month",
+          "label": "Marriage to Sakshi",
+          "tense": "past"
+        },
+        {
+          "key": "first_child",
+          "true_date": "2015-02-06",
+          "precision": "year",
+          "label": "First child (Ziva) born",
+          "tense": "past"
+        },
+        {
+          "key": "major_event",
+          "true_date": "2011-04-02",
+          "precision": "year",
+          "label": "Captained India to the 2011 World Cup win",
+          "tense": "past"
+        }
+      ]
+    },
+    {
+      "id": "ab",
+      "profile_name": "Client F",
+      "relation": "other",
+      "gender": "male",
+      "lang": "ml",
+      "birth": {
+        "date": "1942-10-11",
+        "time": "12:00",
+        "place": "Allahabad"
+      },
+      "time_known": false,
+      "time_confidence": "none",
+      "identity": "Amitabh Bachchan",
+      "source": "Birth date/place: Wikipedia. Birth TIME actively disputed - Astro-Databank carries 03:30 (Rodden A, from the subject), 15:00 and 16:00 (Kundli Sangraha) for the same person. Created with time_known=false.",
+      "events": [
+        {
+          "key": "career_breakout",
+          "true_date": "1973-05-11",
+          "precision": "year",
+          "label": "Zanjeer released - the breakout film",
+          "tense": "past"
+        },
+        {
+          "key": "marriage",
+          "true_date": "1973-06-03",
+          "precision": "month",
+          "label": "Marriage to Jaya Bhaduri",
+          "tense": "past"
+        },
+        {
+          "key": "first_child",
+          "true_date": "1974-03-17",
+          "precision": "year",
+          "label": "First child (Shweta) born",
+          "tense": "past"
+        },
+        {
+          "key": "major_event",
+          "true_date": "1982-07-26",
+          "precision": "year",
+          "label": "Near-fatal injury on the set of Coolie",
+          "tense": "past"
+        }
+      ]
+    },
+    {
+      "id": "ig",
+      "profile_name": "Client G",
+      "relation": "other",
+      "gender": "female",
+      "lang": "en",
+      "birth": {
+        "date": "1917-11-19",
+        "time": "12:00",
+        "place": "Allahabad"
+      },
+      "time_known": false,
+      "time_confidence": "none",
+      "identity": "Indira Gandhi",
+      "source": "Birth date/place: Wikipedia. Birth TIME disputed (17:44 Rodden A per Jansky; 23:11 also circulates). Created with time_known=false.",
+      "events": [
+        {
+          "key": "marriage",
+          "true_date": "1942-03-26",
+          "precision": "month",
+          "label": "Marriage to Feroze Gandhi",
+          "tense": "past"
+        },
+        {
+          "key": "first_child",
+          "true_date": "1944-08-20",
+          "precision": "year",
+          "label": "First child (Rajiv) born",
+          "tense": "past"
+        },
+        {
+          "key": "career_breakout",
+          "true_date": "1966-01-24",
+          "precision": "year",
+          "label": "Became Prime Minister",
+          "tense": "past"
+        },
+        {
+          "key": "major_event",
+          "true_date": "1975-06-25",
+          "precision": "year",
+          "label": "Declared the Emergency - the great crisis of her public life",
+          "tense": "past"
+        }
+      ]
+    },
+    {
+      "id": "nm",
+      "profile_name": "Client H",
+      "relation": "other",
+      "gender": "male",
+      "lang": "hi",
+      "birth": {
+        "date": "1950-09-17",
+        "time": "12:00",
+        "place": "Vadnagar"
+      },
+      "time_known": false,
+      "time_confidence": "none",
+      "identity": "Narendra Modi",
+      "source": "Birth date/place: Wikipedia. Birth TIME commonly quoted as 11:00 from a published horoscope, not from a record; time_known=false. His marriage (1968) has no established date and is excluded.",
+      "events": [
+        {
+          "key": "career_breakout",
+          "true_date": "2001-10-07",
+          "precision": "year",
+          "label": "Became Chief Minister of Gujarat",
+          "tense": "past"
+        },
+        {
+          "key": "major_event",
+          "true_date": "2014-05-26",
+          "precision": "year",
+          "label": "Sworn in as Prime Minister",
+          "tense": "past"
+        }
+      ]
+    }
+  ]
+}
