@@ -6,9 +6,9 @@ history. The Indira Gandhi profile held "Marriage occurred between February
 and October 2021" -- its own wrong answer from an earlier session -- and the
 next answer opened "Based on the chart data and your session memory noting
 marriage occurred between late 2021 and mid-2022", to a client who had never
-said anything of the kind. a private profile picked up "First foreign
-travel occurred around 2016-2017" and "Career began around
-2014-2015" the same way.
+said anything of the kind. A private profile picked up two more of the
+agent's own wrong date windows the same way, plus two chart placements --
+each of them then a permanent "fact" about a real person.
 
 memory.SYSTEM had forbidden exactly this from the start ("Never store
 predictions, chart placements or anything the astrologer said"). Flash
