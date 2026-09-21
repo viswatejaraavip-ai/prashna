@@ -108,9 +108,12 @@ def test_error_body_has_code(fake):
     assert c.get("/y").json() == {"detail": "nope", "code": "not_found"}
 
 
-def test_legacy_modules_still_import():
+def test_the_modules_the_live_app_still_leans_on_import():
+    """`billing` is reached from platform_auth and routes_admin, and it pulls
+    `db` and `config` in with it. `auth` used to be in this list; it belonged
+    to the previous product's web app and is gone."""
     import importlib
-    for mod in ("app.billing", "app.auth", "app.db", "app.config"):
+    for mod in ("app.billing", "app.db", "app.config"):
         importlib.import_module(mod)
     from app import billing
     assert billing.question_fee_units(True) > 0 and callable(billing.record_usage)
