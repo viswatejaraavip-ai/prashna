@@ -12,10 +12,10 @@ Usage::
 
     # token from the JWT secret in Secret Manager
     JWT_SECRET=$(gcloud secrets versions access latest \
-        --secret=udhyath-jwt-secret --project $PROJECT_ID) \
+        --secret=udhyath-jwt-secret --project your-gcp-project) \
     python backend/scripts/perf_probe.py \
         --base-url https://your-service.run.app \
-        --uid $TEST_UID \
+        --uid <a funded test user's uid> \
         --profile jY9caYAi8NJgwpShDeVW --runs 5
 
     # or with an app JWT you already have
@@ -56,7 +56,7 @@ import time
 from typing import Dict, List, Optional, Tuple
 
 DEFAULT_BASE = "https://your-service.run.app"
-DEFAULT_UID = "$TEST_UID"
+DEFAULT_UID = ""
 DEFAULT_PROFILE = "jY9caYAi8NJgwpShDeVW"
 
 # Chart kinds a normal (non-Pro) user can ask for; these are the ones the app
@@ -229,7 +229,7 @@ def run(args) -> Dict[str, Dict]:
         if not secret:
             sys.exit("need --token, or --secret / $JWT_SECRET to mint one "
                      "(gcloud secrets versions access latest "
-                     "--secret=udhyath-jwt-secret --project $PROJECT_ID)")
+                     "--secret=udhyath-jwt-secret --project your-gcp-project)")
         token = mint_token(args.uid, secret)
     base = args.base_url.rstrip("/")
     probes = build_probes(args.profile)

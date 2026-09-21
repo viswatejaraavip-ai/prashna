@@ -39,11 +39,11 @@ jobs:
     timeout-minutes: 40
     environment: production        # optional manual approval gate in GitHub
     env:
-      PROJECT_ID: ${{ vars.GCP_PROJECT_ID || '$PROJECT_ID' }}
+      PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
       REGION: ${{ vars.GCP_REGION || 'asia-south1' }}
       SERVICE: ${{ vars.GCP_SERVICE || 'udhyath-api' }}
-      BUILD_SA: ${{ vars.GCP_BUILD_SA || 'udhyath-build@$PROJECT_ID.iam.gserviceaccount.com' }}
-      BUILD_BUCKET: ${{ vars.GCP_BUILD_BUCKET || '$PROJECT_ID-udhyath-build' }}
+      BUILD_SA: ${{ vars.GCP_BUILD_SA }}
+      BUILD_BUCKET: ${{ vars.GCP_BUILD_BUCKET }}
     steps:
       - name: Resolve the commit CI tested
         id: sha

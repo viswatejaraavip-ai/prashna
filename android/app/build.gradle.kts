@@ -83,7 +83,7 @@ android {
         release {
             // Live Cloud Run URL until a custom domain is mapped; override with -PreleaseApiBase=...
             val releaseApiBase = (project.findProperty("releaseApiBase") as String?)
-                ?: "https://your-service.run.app"
+                ?: "https://your-service.run.app"   // a fork MUST pass -PreleaseApiBase
             buildConfigField("String", "API_BASE", "\"$releaseApiBase\"")
             isMinifyEnabled = true
             isShrinkResources = true
