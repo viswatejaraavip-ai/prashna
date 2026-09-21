@@ -42,7 +42,11 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.prashna.app"
+        // Two apps cannot share a package name on Play, so a fork must
+        // change this -- and its Play Billing products and the backend's
+        // PLAY_PACKAGE_NAME along with it. Pass -PapplicationId=... .
+        applicationId = (project.findProperty("applicationId") as String?)
+            ?: "com.prashna.app"
         minSdk = 26
         targetSdk = 36
         versionCode = 4

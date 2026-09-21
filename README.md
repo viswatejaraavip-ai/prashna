@@ -84,7 +84,7 @@ API key, and a Firebase project for phone/Google sign-in.
 ```bash
 git clone https://github.com/viswatejaraavip-ai/prashna
 cd prashna
-make venv && make test          # 550 tests, no cloud credentials needed
+make venv && make test          # 562 tests, no cloud credentials needed
 
 cd deploy/gcp/terraform
 cp terraform.tfvars.example terraform.tfvars   # add your keys and project
@@ -98,6 +98,27 @@ cd android
 ./gradlew assembleDebug -PapiBase=https://your-service.run.app \
                         -PsourceUrl=https://github.com/you/your-fork
 ```
+
+### Payments are yours, not mine
+
+Nothing routes money to this project. Purchases happen inside *your* app,
+published under *your* Play Console account, and Google pays *your* merchant
+account; the backend only verifies the purchase token, using your own service
+account credentials. Wallet balances live in your Firestore. Razorpay, if you
+enable it, uses `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` from your
+environment.
+
+Three things you must change, or Play Billing will not work:
+
+| What | Where | Why |
+|---|---|---|
+| `applicationId` | `-PapplicationId=com.yourname.app` | Two apps cannot share a package name on Play |
+| `PLAY_PACKAGE_NAME` | backend environment | It must match the app whose purchases you are verifying |
+| Product IDs | Play Console, or `PLAY_PRODUCTS` in `platform_wallet.py` | `wallet_100`, `wallet_200`, `wallet_500`, `wallet_1000` must exist in your console with those exact IDs |
+
+The defaults point at this project's package, so if you leave them, token
+verification fails rather than misrouting anything — but the error will not
+be obvious, which is why it is written down here.
 
 `docs/launch/DEPLOY_GCP.md` has the detail, including the Firebase console
 steps that terraform cannot do for you. Nothing in this repository contains
